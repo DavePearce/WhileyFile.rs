@@ -1,0 +1,13 @@
+[package]
+name = "whiley_file"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "An API for manipulating files written in the Whiley Programming Language."
+homepage = "http://whiley.org"
+repository = "https://github.com/DavePearce/WhileyFile.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syntactic_heap = "0.3.1"
