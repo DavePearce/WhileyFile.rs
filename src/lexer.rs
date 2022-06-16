@@ -5,7 +5,7 @@ use std::str::CharIndices;
 // Token
 // =================================================================
 
-#[derive(Clone,Copy,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum TokenType {
     Ampersand,
     AmpersandAmpersand,
@@ -28,6 +28,7 @@ pub enum TokenType {
     EqualEqual,
     False,
     For,
+    Gap,
     Identifier,
     If,
     I8,
@@ -36,13 +37,14 @@ pub enum TokenType {
     I64,
     Integer,
     LeftAngle,
-    LeftAngleEquals,    
+    LeftAngleEquals,
     LeftBrace,
     LeftCurly,
     LeftSquare,
     Minus,
     MinusGreater,
     New,
+    NewLine,
     Null,
     Percent,
     Plus,
@@ -54,7 +56,7 @@ pub enum TokenType {
     RightSlash,
     RightSlashSlash,
     RightSquare,
-    Shreak,    
+    Shreak,
     ShreakEquals,
     SemiColon,
     Skip,
@@ -72,7 +74,7 @@ pub enum TokenType {
 
 /// Represents a single token generated from a string slice.  This
 /// identifies where the token starts and ends in the original slice.
-#[derive(Clone,Copy,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub struct Token<'a> {
     /// Type of the token
     pub kind : TokenType,
@@ -151,7 +153,7 @@ impl<'a> Lexer<'a> {
 	//
 	self.lookahead.unwrap()
     }
-    
+
     /// Get the next token in the sequence, or none if we have reached
     /// the end.
     pub fn next(&mut self) -> Token<'a> {
@@ -184,8 +186,10 @@ impl<'a> Lexer<'a> {
     /// this.
     fn scan(&mut self, start: usize, ch: char) -> Token<'a> {
         // Switch on first character of token
-        if ch.is_whitespace() {
-            self.scan_whitespace()
+        if ch == ' ' || ch == '\t' {
+            self.scan_indent(start)
+        } else if ch == '\n' {
+            self.scan_newline(start)
         } else if ch.is_digit(10) {
             self.scan_integer(start)
         } else if is_identifier_start(ch)  {
@@ -195,13 +199,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Scan all whitespace from a given starting point, then
-    /// recursively scan an actual token.
-    fn scan_whitespace(&mut self) -> Token<'a> {
-        // Drop all following whitespace
-        self.scan_whilst(|c| c.is_whitespace());
-        // Scan an actual token
-        self.next()
+    /// Scan an indent from a given starting point.
+    fn scan_indent(&mut self, start:usize) -> Token<'a> {
+        let kind = TokenType::Gap;
+        let end = self.scan_whilst(|c| c == ' ' || c == '\t');
+        let content = &self.input[start..end];
+        Token{kind,start,content}
+    }
+
+    fn scan_newline(&mut self, start:usize) -> Token<'a> {
+        let kind = TokenType::NewLine;
+        let content = &self.input[start..start+1];
+        Token{kind,start,content}
     }
 
     /// Scan all digits from a given starting point.
@@ -264,7 +273,7 @@ impl<'a> Lexer<'a> {
             }
 	    "i64" => {
                 TokenType::I64
-            }   
+            }
 	    "new" => {
                 TokenType::New
             }
@@ -300,7 +309,7 @@ impl<'a> Lexer<'a> {
             }
 	    "u64" => {
                 TokenType::U64
-            }	    	    
+            }
 	    "void" => {
                 TokenType::Void
             }
@@ -338,7 +347,7 @@ impl<'a> Lexer<'a> {
                 TokenType::Dot
 	    }
 	    '=' => {
-		// FIXME: ==		
+		// FIXME: ==
 		end = start + 1;
                 TokenType::Equal
 	    }
@@ -399,7 +408,7 @@ impl<'a> Lexer<'a> {
                 TokenType::SemiColon
 	    }
 	    '!' => {
-		// FIXME: != 
+		// FIXME: !=
                 end = start + 1;
                 TokenType::Shreak
             }
@@ -459,41 +468,52 @@ fn test_01() {
 #[test]
 fn test_02() {
     let mut l = Lexer::new(" ");
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_03() {
     let mut l = Lexer::new("  ");
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_04() {
     let mut l = Lexer::new("\n");
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_05() {
     let mut l = Lexer::new(" \n");
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_06() {
     let mut l = Lexer::new("\n ");
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_07() {
     let mut l = Lexer::new("\t");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek() == EOF);
     assert!(l.next() == EOF);
 }
@@ -501,6 +521,8 @@ fn test_07() {
 #[test]
 fn test_08() {
     let mut l = Lexer::new("\t ");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek() == EOF);
     assert!(l.next() == EOF);
 }
@@ -508,6 +530,8 @@ fn test_08() {
 #[test]
 fn test_09() {
     let mut l = Lexer::new(" \t");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek() == EOF);
     assert!(l.next() == EOF);
 }
@@ -517,7 +541,7 @@ fn test_09() {
 #[test]
 fn test_10() {
     let mut l = Lexer::new("1");
-    assert!(l.peek().kind == TokenType::Integer);    
+    assert!(l.peek().kind == TokenType::Integer);
     assert!(l.next().kind == TokenType::Integer);
     assert!(l.next() == EOF);
 }
@@ -525,7 +549,9 @@ fn test_10() {
 #[test]
 fn test_11() {
     let mut l = Lexer::new("  1");
-    assert!(l.peek().as_int() == 1);    
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().as_int() == 1);
     assert!(l.next().as_int() == 1);
     assert!(l.next() == EOF);
 }
@@ -543,13 +569,15 @@ fn test_13() {
     let mut l = Lexer::new("1234 ");
     assert!(l.peek().as_int() == 1234);
     assert!(l.next().as_int() == 1234);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.next() == EOF);
 }
 
 #[test]
 fn test_14() {
     let mut l = Lexer::new("1234_");
-    assert!(l.peek().kind == TokenType::Integer);    
+    assert!(l.peek().kind == TokenType::Integer);
     assert!(l.next().kind == TokenType::Integer);
     assert!(l.peek().kind == TokenType::Identifier);
     assert!(l.next().kind == TokenType::Identifier);
@@ -571,6 +599,8 @@ fn test_16() {
     let mut l = Lexer::new("1234 12");
     assert!(l.peek().as_int() == 1234);
     assert!(l.next().as_int() == 1234);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().as_int() == 12);
     assert!(l.next().as_int() == 12);
 }
@@ -589,6 +619,8 @@ fn test_20() {
 #[test]
 fn test_21() {
     let mut l = Lexer::new("  abc");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().kind == TokenType::Identifier);
     let t = l.next();
     assert!(t.kind == TokenType::Identifier);
@@ -623,8 +655,10 @@ fn test_24() {
     let t1 = l.next();
     assert!(t1.kind == TokenType::Identifier);
     assert!(t1.content == "_abc");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().kind == TokenType::Identifier);
-    let t2 = l.next();    
+    let t2 = l.next();
     assert!(t2.kind == TokenType::Identifier);
     assert!(t2.content == "cd");
     assert!(l.next() == EOF);
