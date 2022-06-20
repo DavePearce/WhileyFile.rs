@@ -91,7 +91,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	self.gap_snap(TokenType::MinusGreater)?;
         let returns = self.parse_decl_parameters()?;
         self.gap_snap(TokenType::Colon)?;
-        self.gap_snap(TokenType::NewLine)?;
+        self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
         let n = Node::FunctionDecl(name,params,returns,body);
@@ -129,15 +129,12 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     pub fn parse_decl_type(&'b mut self) -> Result<Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
-	// Identifier
 	let name = self.parse_identifier()?;
 	// "is"
 	self.gap_snap(TokenType::Is)?;
-	// Type
 	let typ_e = self.parse_type()?;
 	// Determine declaration end
 	let end = self.lexer.offset();
-        // Match end of line
         self.match_line_end()?;
 	// Extract corresponding (sub)slice
 	let slice = &self.lexer.input[start.start .. end];
@@ -150,6 +147,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// Parse a list of parameter declarations
     pub fn parse_decl_parameters(&mut self) -> Result<Vec<Parameter>> {
     	let mut params : Vec<Parameter> = vec![];
+        // Skip any preceeding gap
+        self.skip_gap();
     	// "("
     	self.snap(TokenType::LeftBrace)?;
     	// Keep going until a right brace
@@ -174,21 +173,29 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Statements
     // =========================================================================
 
-    /// Parse a block of zero or more statements.
+    /// Parse a block of one or more statements at a given indentation
+    /// level.  All statements in the block must have a strictly
+    /// greater indentation (i.e. must be the given indentation +
+    /// more).  There must be at least one statement to form a block.
     pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<Stmt> {
     	let mut stmts : Vec<Stmt> = Vec::new();
         // Determine indentation level for this block
     	let nindent = self.snap(TokenType::Gap)?;
-        // Check indentation level
-        if nindent.content.starts_with(indent) && indent.len() < nindent.len() {
-    	    // Parent indent is a strict prefix of block's indent.
-            println!("GOT HERE");
-    	//     while self.snap(TokenType::RightCurly).is_err() {
-    	//     stmts.push(self.parse_stmt()?);
-    	// }
-    	    // Done
+        // Sanity check indentation
+        if !nindent.content.starts_with(indent) || indent.len() == nindent.len() {
+    	    // Parent indent not a strict prefix of current indent.
+            return Err(Error::new(nindent,"invalid block"));
         }
-        //
+        // Parse initial statement
+    	stmts.push(self.parse_stmt()?);
+    	// Parse remaining statements at same indent
+        while self.lexer.peek().content == nindent.content {
+            // Parse indentation
+            self.snap(TokenType::Gap);
+            // Parse statement
+    	    stmts.push(self.parse_stmt()?);
+        }
+        // Done
         Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
     }
 
@@ -217,8 +224,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		return Err(Error::new(lookahead,"unknown token encountered"));
     	    }
     	};
-    	// ";"
-    	self.snap(TokenType::SemiColon)?;
+        // Match line end
+        self.match_line_end();
     	// Done
     	stmt
     }
@@ -518,6 +525,19 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     fn gap_snap(&mut self, kind : TokenType) -> Result<Token<'a>> {
         self.skip_gap();
         self.snap(kind)
+    }
+
+    /// Match a given token type in the current stream without consuming it.
+    fn matches(&mut self, kind : TokenType) -> Result<Token<'a>> {
+        // Peek at the next token
+	let lookahead = self.lexer.peek();
+	// Check it!
+	if lookahead.kind == kind {
+	    Ok(lookahead)
+	} else {
+	    // Reject
+	    Err(Error::new(lookahead,"expected one thing, found another"))
+	}
     }
 
     /// Match a given token type in the current stream.  If the kind

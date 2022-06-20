@@ -155,57 +155,106 @@ fn test_type_19() {
 }
 
 // ======================================================
-// Tests (Method Declarations)
+// Tests (Function Declarations)
 // ======================================================
 
 #[test]
-fn test_method_01() {
+fn test_function_01() {
     check_parse_error("func");
 }
 
 #[test]
-fn test_method_02() {
+fn test_function_02() {
     check_parse_error("function");
 }
 
 #[test]
-fn test_method_03() {
+fn test_function_03() {
     check_parse_error("function f");
 }
 
 #[test]
-fn test_method_04() {
+fn test_function_04() {
     check_parse_error("function f(");
 }
 
 #[test]
-fn test_method_05() {
-    check_parse_error("void f() {");
+fn test_function_05() {
+    check_parse_error("function f():");
 }
 
 #[test]
-fn test_method_06() {
-    let ast = check_parse("function f()->():\n ");
-    assert_eq!(ast.get(0),&Node::VoidType);
-    check_name(ast.get(1),"f");
-    assert_eq!(ast.get(2),&Node::BlockStmt(vec![]));
-    assert_eq!(ast.get(3),&Node::MethodDecl(Name(1),vec![],vec![],Stmt(2)));
+fn test_function_06a() {
+    check_parse_error("function f()->():");
 }
 
 #[test]
-fn test_method_07() {
-    let ast = check_parse("void f(i32 x) {}");
-    assert_eq!(ast.get(0),&Node::VoidType);
-    check_name(ast.get(1),"f");
+fn test_function_06b() {
+    check_parse_error("function f()->():\n");
+}
+
+#[test]
+fn test_function_06c() {
+    check_parse_error("function f()->():\n ");
+}
+
+#[test]
+fn test_function_06d() {
+    let ast = check_parse("function f()->() :\n skip");
+}
+
+#[test]
+fn test_function_06e() {
+    let ast = check_parse("function f()->():\n skip");
+    check_name(ast.get(0),"f");
+    assert_eq!(ast.get(1),&Node::SkipStmt);
+    assert_eq!(ast.get(2),&Node::BlockStmt(vec![Stmt(1)]));
+    assert_eq!(ast.get(3),&Node::FunctionDecl(Name(0),vec![],vec![],Stmt(2)));
+}
+
+#[test]
+fn test_function_06f() {
+    let ast = check_parse("function f() ->():\n skip");
+    check_name(ast.get(0),"f");
+    assert_eq!(ast.get(1),&Node::SkipStmt);
+    assert_eq!(ast.get(2),&Node::BlockStmt(vec![Stmt(1)]));
+    assert_eq!(ast.get(3),&Node::FunctionDecl(Name(0),vec![],vec![],Stmt(2)));
+}
+
+#[test]
+fn test_function_06g() {
+    let ast = check_parse("function f()-> ():\n skip");
+    check_name(ast.get(0),"f");
+    assert_eq!(ast.get(1),&Node::SkipStmt);
+    assert_eq!(ast.get(2),&Node::BlockStmt(vec![Stmt(1)]));
+    assert_eq!(ast.get(3),&Node::FunctionDecl(Name(0),vec![],vec![],Stmt(2)));
+}
+
+
+#[test]
+fn test_function_06h() {
+    let ast = check_parse("function f() -> ():\n skip");
+    check_name(ast.get(0),"f");
+    assert_eq!(ast.get(1),&Node::SkipStmt);
+    assert_eq!(ast.get(2),&Node::BlockStmt(vec![Stmt(1)]));
+    assert_eq!(ast.get(3),&Node::FunctionDecl(Name(0),vec![],vec![],Stmt(2)));
+}
+
+#[test]
+fn test_function_07() {
+    let ast = check_parse("function f(i32 x):\n skip");
+    println!("{:?}",ast);
+    check_name(ast.get(0),"f");
+    assert_eq!(ast.get(1),&Node::SkipStmt);
     assert_eq!(ast.get(2),&Node::IntType(true,32));
     check_name(ast.get(3),"x");
-    assert_eq!(ast.get(4),&Node::BlockStmt(vec![]));
+    assert_eq!(ast.get(4),&Node::BlockStmt(vec![Stmt(1)]));
     let params = vec![Parameter{declared:Type(2),name:Name(3)}];
-    assert_eq!(ast.get(5),&Node::MethodDecl(Name(1),vec![],params,Stmt(4)));
+    assert_eq!(ast.get(5),&Node::MethodDecl(Name(0),vec![],params,Stmt(4)));
 }
 
 #[test]
-fn test_method_08() {
+fn test_function_08() {
     let ast = check_parse("bool f(i32 i, bool b) {}");
     assert_eq!(ast.get(0),&Node::BoolType);
     check_name(ast.get(1),"f");
@@ -217,6 +266,11 @@ fn test_method_08() {
     let params = vec![Parameter{declared:Type(2),name:Name(3)},Parameter{declared:Type(4),name:Name(5)}];
     assert_eq!(ast.get(7),&Node::MethodDecl(Name(1),vec![],params,Stmt(6)));
 }
+
+// ======================================================
+// Tests (Method Declarations)
+// ======================================================
+
 
 // ======================================================
 // Tests (Skip)

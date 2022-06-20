@@ -69,6 +69,7 @@ impl Decl {
     /// Determine whether a given term is a declaration or not.
     pub fn is(t: &Node) -> bool {
         match t {
+	    Node::FunctionDecl(_,_,_,_) => true,
 	    Node::MethodDecl(_,_,_,_) => true,
             Node::TypeDecl(_,_) => true,
             _ => false
