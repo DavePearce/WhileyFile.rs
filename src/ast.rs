@@ -19,7 +19,8 @@ pub enum Node {
     Utf8(String),
     // Declarations
     TypeDecl(Name,Type),
-    MethodDecl(Name,Type,Vec<Parameter>,Stmt),
+    FunctionDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
+    MethodDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
     // Statements
     AssertStmt(Expr),
     BlockStmt(Vec<Stmt>),
@@ -68,6 +69,7 @@ impl Decl {
     /// Determine whether a given term is a declaration or not.
     pub fn is(t: &Node) -> bool {
         match t {
+	    Node::FunctionDecl(_,_,_,_) => true,
 	    Node::MethodDecl(_,_,_,_) => true,
             Node::TypeDecl(_,_) => true,
             _ => false

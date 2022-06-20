@@ -73,52 +73,82 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    TokenType::Type => {
 		self.parse_decl_type()
 	    }
+            TokenType::Function => {
+                self.parse_decl_function()
+            }
 	    _ => {
-		self.parse_decl_method()
+                todo!("Unknown declaration")
 	    }
 	}
     }
 
-    /// Parse a type declaration of the from `type name is type;`.
+    pub fn parse_decl_function(&'b mut self) -> Result<Decl> {
+	// "function"
+	self.snap(TokenType::Function)?;
+	let name = self.parse_identifier()?;
+	let params = self.parse_decl_parameters()?;
+        // "->"
+	self.gap_snap(TokenType::MinusGreater)?;
+        let returns = self.parse_decl_parameters()?;
+        self.gap_snap(TokenType::Colon)?;
+        self.match_line_end()?;
+	let body = self.parse_stmt_block(&"")?;
+	// Construct node
+        let n = Node::FunctionDecl(name,params,returns,body);
+        // Done
+        Ok(Decl::new(self.ast,n))
+    }
+
+    /// Parse a _property declaration_ in a Whiley source file.  A
+    /// simple example to illustrate is:
+    ///
+    /// ```Whiley
+    /// property contains(int[] xs, int x) -> bool
+    /// requires x >= 0:
+    ///    return some { i in 0..|xs| | xs[i] == x }
+    /// ```
+    ///
+    /// Properties are permitted to have `requires` clauses, but not
+    /// `ensures` clauses.  Their body is also constrained to admin
+    /// only non-looping statements.
+    pub fn parse_decl_property(&'b mut self) -> Result<Decl> {
+        todo![];
+    }
+
+    /// Parse a type declaration in a Whiley source file.  A simple
+    /// example to illustrate is:
+    ///
+    /// ```Whiley
+    /// type nat is (int x) where x >= 0
+    /// ```
+    ///
+    /// Here, we are defining a *constrained type* called `nat` which
+    /// represents the set of natural numbers (i.e the non-negative
+    /// integers). Type declarations may also have modifiers, such as
+    /// `public` and `private`.
     pub fn parse_decl_type(&'b mut self) -> Result<Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
-	// Identifier
 	let name = self.parse_identifier()?;
-	// "="
-	self.snap(TokenType::Equal)?;
-	// Type
+	// "is"
+	self.gap_snap(TokenType::Is)?;
 	let typ_e = self.parse_type()?;
-	// Semi-colon
-	let end = self.snap(TokenType::SemiColon)?;
+	// Determine declaration end
+	let end = self.lexer.offset();
+        self.match_line_end()?;
 	// Extract corresponding (sub)slice
-	let slice = &self.lexer.input[start.start .. end.end()];
+	let slice = &self.lexer.input[start.start .. end];
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
 	Ok(Decl::new(self.ast,Node::TypeDecl(name,typ_e)))
     }
 
-    /// Parse a method declaration of the form `Type name([Type
-    /// Identifier]*) Stmt.Block`.
-    pub fn parse_decl_method(&'b mut self) -> Result<Decl> {
-	// Type
-	let ret_type = self.parse_type()?;
-	// Identifier
-	let name = self.parse_identifier()?;
-	// "(" [Type Identifier]+ ")"
-	let params = self.parse_decl_parameters()?;
-	// "{" [Stmt]* "}"
-	let body = self.parse_stmt_block()?;
-	// // Apply source map
-	// //let attr = (self.mapper)("test");
-	//
-	Ok(Decl::new(self.ast,Node::MethodDecl(name,ret_type,params,body)))
-    }
-
     /// Parse a list of parameter declarations
     pub fn parse_decl_parameters(&mut self) -> Result<Vec<Parameter>> {
     	let mut params : Vec<Parameter> = vec![];
+        // Skip any preceeding gap
+        self.skip_gap();
     	// "("
     	self.snap(TokenType::LeftBrace)?;
     	// Keep going until a right brace
@@ -143,18 +173,30 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Statements
     // =========================================================================
 
-    /// Parse a block of zero or more statements surrounded by curly
-    /// braces.  For example, `{ int x = 1; x = x + 1; }`.
-    pub fn parse_stmt_block(&mut self) -> Result<Stmt> {
+    /// Parse a block of one or more statements at a given indentation
+    /// level.  All statements in the block must have a strictly
+    /// greater indentation (i.e. must be the given indentation +
+    /// more).  There must be at least one statement to form a block.
+    pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<Stmt> {
     	let mut stmts : Vec<Stmt> = Vec::new();
-    	// "{"
-    	self.snap(TokenType::LeftCurly)?;
-    	// Keep going until a right curly
-    	while self.snap(TokenType::RightCurly).is_err() {
+        // Determine indentation level for this block
+    	let nindent = self.snap(TokenType::Gap)?;
+        // Sanity check indentation
+        if !nindent.content.starts_with(indent) || indent.len() == nindent.len() {
+    	    // Parent indent not a strict prefix of current indent.
+            return Err(Error::new(nindent,"invalid block"));
+        }
+        // Parse initial statement
+    	stmts.push(self.parse_stmt()?);
+    	// Parse remaining statements at same indent
+        while self.lexer.peek().content == nindent.content {
+            // Parse indentation
+            self.snap(TokenType::Gap);
+            // Parse statement
     	    stmts.push(self.parse_stmt()?);
-    	}
-    	// Done
-    	Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
+        }
+        // Done
+        Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
     }
 
     /// Parse an arbitrary statement.
@@ -182,8 +224,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		return Err(Error::new(lookahead,"unknown token encountered"));
     	    }
     	};
-    	// ";"
-    	self.snap(TokenType::SemiColon)?;
+        // Match line end
+        self.match_line_end();
     	// Done
     	stmt
     }
@@ -272,6 +314,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_type(&mut self) -> Result<Type> {
+        self.skip_gap();
 	self.parse_type_compound()
     }
 
@@ -427,6 +470,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_identifier(&mut self) -> Result<Name> {
+        self.skip_gap();
 	let tok = self.snap(TokenType::Identifier)?;
 	// FIXME: should employ cache!
 	Ok(Name::new(self.ast,&tok.content))
@@ -441,6 +485,60 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // 	let end = last.end();
     // 	Attributes{start,end}
     // }
+
+    /// If the next token is a gap, just skip over it.
+    fn skip_gap(&mut self) {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::Gap => {
+                self.snap(TokenType::Gap);
+            }
+            _ => {
+                // Do nothing
+            }
+        }
+    }
+
+    /// Match the end of a line which is used, for example, to signal
+    /// the end of the current statement.
+    fn match_line_end(&mut self) -> Result<()> {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::EOF => {
+                Ok(())
+            }
+            TokenType::NewLine => {
+                self.snap(lookahead.kind);
+                Ok(())
+            }
+            _ => {
+	        // Reject
+	        Err(Error::new(lookahead,"expecting end-of-line"))
+            }
+        }
+    }
+
+    /// Match a given token type in the current stream, allowing for
+    /// an optional gap beforehand.
+    fn gap_snap(&mut self, kind : TokenType) -> Result<Token<'a>> {
+        self.skip_gap();
+        self.snap(kind)
+    }
+
+    /// Match a given token type in the current stream without consuming it.
+    fn matches(&mut self, kind : TokenType) -> Result<Token<'a>> {
+        // Peek at the next token
+	let lookahead = self.lexer.peek();
+	// Check it!
+	if lookahead.kind == kind {
+	    Ok(lookahead)
+	} else {
+	    // Reject
+	    Err(Error::new(lookahead,"expected one thing, found another"))
+	}
+    }
 
     /// Match a given token type in the current stream.  If the kind
     /// matches, then the token stream advances.  Otherwise, it

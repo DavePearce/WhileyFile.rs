@@ -5,7 +5,7 @@ use std::str::CharIndices;
 // Token
 // =================================================================
 
-#[derive(Clone,Copy,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum TokenType {
     Ampersand,
     AmpersandAmpersand,
@@ -28,7 +28,10 @@ pub enum TokenType {
     EqualEqual,
     False,
     For,
+    Function,
+    Gap,
     Identifier,
+    Is,
     If,
     I8,
     I16,
@@ -36,25 +39,27 @@ pub enum TokenType {
     I64,
     Integer,
     LeftAngle,
-    LeftAngleEquals,    
+    LeftAngleEquals,
     LeftBrace,
     LeftCurly,
     LeftSquare,
+    Method,
     Minus,
     MinusGreater,
     New,
+    NewLine,
     Null,
     Percent,
     Plus,
     Return,
     RightAngle,
-    RightAndleEquals,
+    RightAngleEquals,
     RightBrace,
     RightCurly,
     RightSlash,
     RightSlashSlash,
     RightSquare,
-    Shreak,    
+    Shreak,
     ShreakEquals,
     SemiColon,
     Skip,
@@ -72,7 +77,7 @@ pub enum TokenType {
 
 /// Represents a single token generated from a string slice.  This
 /// identifies where the token starts and ends in the original slice.
-#[derive(Clone,Copy,PartialEq)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub struct Token<'a> {
     /// Type of the token
     pub kind : TokenType,
@@ -104,11 +109,12 @@ impl<'a> Token<'a> {
     pub fn end(&self) -> usize {
 	self.start + self.content.len()
     }
-}
 
-/// Represents the end of the input stream.  This is helpful because
-/// it allows us to avoid using `Option<>` everywhere.
-pub const EOF : Token<'static> = Token{kind: TokenType::EOF,start:usize::MAX,content: ""};
+    /// Get the length (in bytes) of this token.
+    pub fn len(&self) -> usize {
+        self.end() - self.start
+    }
+}
 
 // =================================================================
 // Lexer
@@ -140,6 +146,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Determine current offset within input string.
+    pub fn offset(&mut self) -> usize {
+        self.peek().start
+    }
+
     /// Peek at the next token in the sequence, or none if we have
     /// reached the end.
     pub fn peek(&mut self) -> Token<'a> {
@@ -151,7 +162,7 @@ impl<'a> Lexer<'a> {
 	//
 	self.lookahead.unwrap()
     }
-    
+
     /// Get the next token in the sequence, or none if we have reached
     /// the end.
     pub fn next(&mut self) -> Token<'a> {
@@ -169,7 +180,7 @@ impl<'a> Lexer<'a> {
 		// Sanity check it
 		match n {
 		    None => {
-			EOF
+			self.eof()
 		    }
 		    Some((offset,ch)) => {
 			self.scan(offset,ch)
@@ -184,8 +195,10 @@ impl<'a> Lexer<'a> {
     /// this.
     fn scan(&mut self, start: usize, ch: char) -> Token<'a> {
         // Switch on first character of token
-        if ch.is_whitespace() {
-            self.scan_whitespace()
+        if ch == ' ' || ch == '\t' {
+            self.scan_indent(start)
+        } else if ch == '\n' {
+            self.scan_newline(start)
         } else if ch.is_digit(10) {
             self.scan_integer(start)
         } else if is_identifier_start(ch)  {
@@ -195,13 +208,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Scan all whitespace from a given starting point, then
-    /// recursively scan an actual token.
-    fn scan_whitespace(&mut self) -> Token<'a> {
-        // Drop all following whitespace
-        self.scan_whilst(|c| c.is_whitespace());
-        // Scan an actual token
-        self.next()
+    /// Scan an indent from a given starting point.
+    fn scan_indent(&mut self, start:usize) -> Token<'a> {
+        let kind = TokenType::Gap;
+        let end = self.scan_whilst(|c| c == ' ' || c == '\t');
+        let content = &self.input[start..end];
+        Token{kind,start,content}
+    }
+
+    fn scan_newline(&mut self, start:usize) -> Token<'a> {
+        let kind = TokenType::NewLine;
+        let content = &self.input[start..start+1];
+        Token{kind,start,content}
     }
 
     /// Scan all digits from a given starting point.
@@ -250,8 +268,14 @@ impl<'a> Lexer<'a> {
 	    "for" => {
                 TokenType::For
             }
+            "function" => {
+                TokenType::Function
+            }
             "if" => {
                 TokenType::If
+            }
+            "is" => {
+                TokenType::Is
             }
 	    "i8" => {
                 TokenType::I8
@@ -264,7 +288,10 @@ impl<'a> Lexer<'a> {
             }
 	    "i64" => {
                 TokenType::I64
-            }   
+            }
+            "method" => {
+                TokenType::Method
+            }
 	    "new" => {
                 TokenType::New
             }
@@ -300,7 +327,7 @@ impl<'a> Lexer<'a> {
             }
 	    "u64" => {
                 TokenType::U64
-            }	    	    
+            }
 	    "void" => {
                 TokenType::Void
             }
@@ -312,18 +339,26 @@ impl<'a> Lexer<'a> {
     }
 
     /// Scan an operator from a given starting point.
-    fn scan_operator(&self, start: usize, ch: char) -> Token<'a> {
+    fn scan_operator(&mut self, start: usize, ch: char) -> Token<'a> {
         let end : usize;
         let kind = match ch {
 	    '&' => {
-		// FIXME: &&
-		end = start + 1;
-                TokenType::Ampersand
+                if self.matches('&') {
+                    end = start + 2;
+                    TokenType::AmpersandAmpersand
+                } else {
+		    end = start + 1;
+                    TokenType::Ampersand
+                }
 	    }
 	    '|' => {
-		// FIXME: ||
-		end = start + 1;
-                TokenType::Bar
+                if self.matches('|') {
+                    end = start + 2;
+                    TokenType::BarBar
+                } else {
+		    end = start + 1;
+                    TokenType::Bar
+                }
 	    }
 	    ':' => {
 		end = start + 1;
@@ -338,14 +373,22 @@ impl<'a> Lexer<'a> {
                 TokenType::Dot
 	    }
 	    '=' => {
-		// FIXME: ==		
-		end = start + 1;
-                TokenType::Equal
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::EqualEqual
+                } else {
+		    end = start + 1;
+                    TokenType::Equal
+                }
 	    }
 	    '<' => {
-		// FIXME: <=
-                end = start + 1;
-                TokenType::LeftAngle
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::LeftAngleEquals
+                } else {
+                    end = start + 1;
+                    TokenType::LeftAngle
+                }
             }
             '(' => {
                 end = start + 1;
@@ -360,9 +403,13 @@ impl<'a> Lexer<'a> {
                 TokenType::LeftSquare
             }
 	    '-' => {
-		// FIXME: ->
-                end = start + 1;
-                TokenType::Minus
+                if self.matches('>') {
+                    end = start + 2;
+                    TokenType::MinusGreater
+                } else {
+                    end = start + 1;
+                    TokenType::Minus
+                }
             }
 	    '%' => {
                 end = start + 1;
@@ -373,9 +420,13 @@ impl<'a> Lexer<'a> {
                 TokenType::Plus
             }
             '>' => {
-		// FIXME: >=
-                end = start + 1;
-                TokenType::RightAngle
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::RightAngleEquals
+                } else {
+                    end = start + 1;
+                    TokenType::RightAngle
+                }
             }
 	    ')' => {
                 end = start + 1;
@@ -386,9 +437,13 @@ impl<'a> Lexer<'a> {
                 TokenType::RightCurly
             }
 	    '/' => {
-		// FIXME: //
-                end = start + 1;
-                TokenType::RightSlash
+                if self.matches('/') {
+                    end = start + 2;
+                    TokenType::RightSlashSlash
+                } else {
+                    end = start + 1;
+                    TokenType::RightSlash
+                }
             }
 	    ']' => {
                 end = start + 1;
@@ -399,16 +454,20 @@ impl<'a> Lexer<'a> {
                 TokenType::SemiColon
 	    }
 	    '!' => {
-		// FIXME: != 
-                end = start + 1;
-                TokenType::Shreak
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::ShreakEquals
+                } else {
+                    end = start + 1;
+                    TokenType::Shreak
+                }
             }
 	    '*' => {
                 end = start + 1;
                 TokenType::Star
             }
             _ => {
-                return EOF;
+                return self.eof();
             }
         };
         let content = &self.input[start..end];
@@ -433,6 +492,28 @@ impl<'a> Lexer<'a> {
         // from the starting point onwards is part of the token.
         self.input.len()
     }
+
+    /// Attempt to match following character
+    fn matches(&mut self, ch: char) -> bool {
+        match self.chars.peek() {
+            Some((_,c)) => {
+                if *c == ch {
+                    // Consume character
+                    self.chars.next();
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false
+        }
+    }
+
+    /// Construct appropriate EOF token for this lexer.  The key issue
+    /// is that the token must end one character past end of input.
+    fn eof(&self) -> Token<'a> {
+        Token{kind: TokenType::EOF,start:self.input.len(),content: ""}
+    }
 }
 
 /// Determine whether a given character is the start of an identifier.
@@ -452,64 +533,79 @@ fn is_identifier_middle(c: char) -> bool {
 #[test]
 fn test_01() {
     let mut l = Lexer::new("");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_02() {
     let mut l = Lexer::new(" ");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_03() {
     let mut l = Lexer::new("  ");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_04() {
     let mut l = Lexer::new("\n");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_05() {
     let mut l = Lexer::new(" \n");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_06() {
     let mut l = Lexer::new("\n ");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_07() {
     let mut l = Lexer::new("\t");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_08() {
     let mut l = Lexer::new("\t ");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_09() {
     let mut l = Lexer::new(" \t");
-    assert!(l.peek() == EOF);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 // Literals
@@ -517,17 +613,19 @@ fn test_09() {
 #[test]
 fn test_10() {
     let mut l = Lexer::new("1");
-    assert!(l.peek().kind == TokenType::Integer);    
+    assert!(l.peek().kind == TokenType::Integer);
     assert!(l.next().kind == TokenType::Integer);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_11() {
     let mut l = Lexer::new("  1");
-    assert!(l.peek().as_int() == 1);    
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().as_int() == 1);
     assert!(l.next().as_int() == 1);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -535,7 +633,7 @@ fn test_12() {
     let mut l = Lexer::new("1234");
     assert!(l.peek().as_int() == 1234);
     assert!(l.next().as_int() == 1234);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -543,17 +641,19 @@ fn test_13() {
     let mut l = Lexer::new("1234 ");
     assert!(l.peek().as_int() == 1234);
     assert!(l.next().as_int() == 1234);
-    assert!(l.next() == EOF);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_14() {
     let mut l = Lexer::new("1234_");
-    assert!(l.peek().kind == TokenType::Integer);    
+    assert!(l.peek().kind == TokenType::Integer);
     assert!(l.next().kind == TokenType::Integer);
     assert!(l.peek().kind == TokenType::Identifier);
     assert!(l.next().kind == TokenType::Identifier);
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::EOF);
 }
 
 #[test]
@@ -563,7 +663,7 @@ fn test_15() {
     assert!(l.next().as_int() == 1234);
     assert!(l.peek().kind == TokenType::Identifier);
     assert!(l.next().kind == TokenType::Identifier);
-    assert!(l.peek() == EOF);
+    assert!(l.peek().kind == TokenType::EOF);
 }
 
 #[test]
@@ -571,6 +671,8 @@ fn test_16() {
     let mut l = Lexer::new("1234 12");
     assert!(l.peek().as_int() == 1234);
     assert!(l.next().as_int() == 1234);
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().as_int() == 12);
     assert!(l.next().as_int() == 12);
 }
@@ -583,17 +685,19 @@ fn test_20() {
     let t = l.next();
     assert!(t.kind == TokenType::Identifier);
     assert!(t.content == "abc");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
 fn test_21() {
     let mut l = Lexer::new("  abc");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().kind == TokenType::Identifier);
     let t = l.next();
     assert!(t.kind == TokenType::Identifier);
     assert!(t.content == "abc");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -603,7 +707,7 @@ fn test_22() {
     let t = l.next();
     assert!(t.kind == TokenType::Identifier);
     assert!(t.content == "_abc");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -613,7 +717,7 @@ fn test_23() {
     let t = l.next();
     assert!(t.kind == TokenType::Identifier);
     assert!(t.content == "a_bD12233_");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -623,11 +727,13 @@ fn test_24() {
     let t1 = l.next();
     assert!(t1.kind == TokenType::Identifier);
     assert!(t1.content == "_abc");
+    assert!(l.peek().kind == TokenType::Gap);
+    assert!(l.next().kind == TokenType::Gap);
     assert!(l.peek().kind == TokenType::Identifier);
-    let t2 = l.next();    
+    let t2 = l.next();
     assert!(t2.kind == TokenType::Identifier);
     assert!(t2.content == "cd");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 // Keywords
@@ -637,7 +743,7 @@ fn test_30() {
     let mut l = Lexer::new("if");
     assert!(l.peek().kind == TokenType::If);
     assert!(l.next().kind == TokenType::If);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -645,7 +751,7 @@ fn test_31() {
     let mut l = Lexer::new("while");
     assert!(l.peek().kind == TokenType::While);
     assert!(l.next().kind == TokenType::While);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 // Operators
@@ -655,7 +761,7 @@ fn test_40() {
     let mut l = Lexer::new("(");
     assert!(l.peek().kind == TokenType::LeftBrace);
     assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -665,7 +771,7 @@ fn test_41() {
     assert!(l.next().kind == TokenType::LeftBrace);
     assert!(l.peek().kind == TokenType::LeftBrace);
     assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -682,7 +788,7 @@ fn test_43() {
     assert!(l.next().kind == TokenType::RightBrace);
     assert!(l.peek().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::RightBrace);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -692,7 +798,7 @@ fn test_44() {
     assert!(l.next().kind == TokenType::LeftBrace);
     assert!(l.peek().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::RightBrace);
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 // Combinations
@@ -706,7 +812,7 @@ fn test_60() {
     let t2 = l.next();
     assert!(t2.kind == TokenType::LeftBrace);
     assert!(t2.content == "(");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
 
 #[test]
@@ -718,5 +824,5 @@ fn test_61() {
     let t2 = l.next();
     assert!(t2.kind == TokenType::LeftBrace);
     assert!(t2.content == "(");
-    assert!(l.next() == EOF);
+    assert!(l.next().kind == TokenType::EOF);
 }
