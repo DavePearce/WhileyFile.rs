@@ -74,34 +74,12 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 		self.parse_decl_type()
 	    }
 	    _ => {
-		self.parse_decl_method()
+		self.parse_decl_function_or_method()
 	    }
 	}
     }
 
-    /// Parse a type declaration of the from `type name is type;`.
-    pub fn parse_decl_type(&'b mut self) -> Result<Decl> {
-	// "type"
-	let start = self.snap(TokenType::Type)?;
-	// Identifier
-	let name = self.parse_identifier()?;
-	// "="
-	self.snap(TokenType::Equal)?;
-	// Type
-	let typ_e = self.parse_type()?;
-	// Semi-colon
-	let end = self.snap(TokenType::SemiColon)?;
-	// Extract corresponding (sub)slice
-	let slice = &self.lexer.input[start.start .. end.end()];
-	// Apply source map
-	//let attr = (self.mapper)(slice);
-	// Done
-	Ok(Decl::new(self.ast,Node::TypeDecl(name,typ_e)))
-    }
-
-    /// Parse a method declaration of the form `Type name([Type
-    /// Identifier]*) Stmt.Block`.
-    pub fn parse_decl_method(&'b mut self) -> Result<Decl> {
+    pub fn parse_decl_function_or_method(&'b mut self) -> Result<Decl> {
 	// Type
 	let ret_type = self.parse_type()?;
 	// Identifier
@@ -114,6 +92,54 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// //let attr = (self.mapper)("test");
 	//
 	Ok(Decl::new(self.ast,Node::MethodDecl(name,ret_type,params,body)))
+    }
+
+    /// Parse a _property declaration_ in a Whiley source file.  A
+    /// simple example to illustrate is:
+    ///
+    /// ```Whiley
+    /// property contains(int[] xs, int x) -> bool
+    /// requires x >= 0:
+    ///    return some { i in 0..|xs| | xs[i] == x }
+    /// ```
+    ///
+    /// Properties are permitted to have `requires` clauses, but not
+    /// `ensures` clauses.  Their body is also constrained to admin
+    /// only non-looping statements.
+    pub fn parse_decl_property(&'b mut self) -> Result<Decl> {
+        todo![];
+    }
+
+    /// Parse a type declaration in a Whiley source file.  A simple
+    /// example to illustrate is:
+    ///
+    /// ```Whiley
+    /// type nat is (int x) where x >= 0
+    /// ```
+    ///
+    /// Here, we are defining a *constrained type* called `nat` which
+    /// represents the set of natural numbers (i.e the non-negative
+    /// integers). Type declarations may also have modifiers, such as
+    /// `public` and `private`.
+    pub fn parse_decl_type(&'b mut self) -> Result<Decl> {
+	// "type"
+	let start = self.snap(TokenType::Type)?;
+	// Identifier
+	let name = self.parse_identifier()?;
+	// "is"
+	self.gap_snap(TokenType::Is)?;
+	// Type
+	let typ_e = self.parse_type()?;
+	// Determine declaration end
+	let end = self.lexer.offset();
+        // Match end of line
+        self.match_line_end()?;
+	// Extract corresponding (sub)slice
+	let slice = &self.lexer.input[start.start .. end];
+	// Apply source map
+	//let attr = (self.mapper)(slice);
+	// Done
+	Ok(Decl::new(self.ast,Node::TypeDecl(name,typ_e)))
     }
 
     /// Parse a list of parameter declarations
@@ -272,6 +298,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_type(&mut self) -> Result<Type> {
+        self.skip_gap();
 	self.parse_type_compound()
     }
 
@@ -427,6 +454,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_identifier(&mut self) -> Result<Name> {
+        self.skip_gap();
 	let tok = self.snap(TokenType::Identifier)?;
 	// FIXME: should employ cache!
 	Ok(Name::new(self.ast,&tok.content))
@@ -441,6 +469,47 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // 	let end = last.end();
     // 	Attributes{start,end}
     // }
+
+    /// If the next token is a gap, just skip over it.
+    fn skip_gap(&mut self) {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::Gap => {
+                self.snap(TokenType::Gap);
+            }
+            _ => {
+                // Do nothing
+            }
+        }
+    }
+
+    /// Match the end of a line which is used, for example, to signal
+    /// the end of the current statement.
+    fn match_line_end(&mut self) -> Result<()> {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::EOF => {
+                Ok(())
+            }
+            TokenType::NewLine => {
+                self.snap(lookahead.kind);
+                Ok(())
+            }
+            _ => {
+	        // Reject
+	        Err(Error::new(lookahead,"expecting end-of-line"))
+            }
+        }
+    }
+
+    /// Match a given token type in the current stream, allowing for
+    /// an optional gap beforehand.
+    fn gap_snap(&mut self, kind : TokenType) -> Result<Token<'a>> {
+        self.skip_gap();
+        self.snap(kind)
+    }
 
     /// Match a given token type in the current stream.  If the kind
     /// matches, then the token stream advances.  Otherwise, it

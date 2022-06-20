@@ -7,80 +7,80 @@ use whiley_file::parser::Parser;
 
 #[test]
 fn test_type_01() {
-    check_parse_error("type nat = i32");
+    check_parse_error("type nat is i32 x");
 }
 
 #[test]
 fn test_type_02() {
-    check_parse_error("type nat i8;");
+    check_parse_error("type nat is i8;");
 }
 
 #[test]
 fn test_type_03() {
-    let ast = check_parse("type t = bool;");
+    let ast = check_parse("type t is bool");
     check_name(ast.get(0),"t");
     assert!(matches!(ast.get(1),Node::BoolType));
 }
 
 #[test]
 fn test_type_04() {
-    let ast = check_parse("type nat = i8;");
+    let ast = check_parse("type nat is i8");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,8));
 }
 
 #[test]
 fn test_type_05() {
-    let ast = check_parse("type nat = i16;");
+    let ast = check_parse("type nat is i16");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,16));
 }
 
 #[test]
 fn test_type_06() {
-    let ast = check_parse("type nat = i32;");
+    let ast = check_parse("type nat is i32");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,32));
 }
 
 #[test]
 fn test_type_07() {
-    let ast = check_parse("type nat = i64;");
+    let ast = check_parse("type nat is i64");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,64));
 }
 
 #[test]
 fn test_type_08() {
-    let ast = check_parse("type nat = u8;");
+    let ast = check_parse("type nat is u8");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(false,8));
 }
 
 #[test]
 fn test_type_09() {
-    let ast = check_parse("type nat = u16;");
+    let ast = check_parse("type nat is u16");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(false,16));
 }
 
 #[test]
 fn test_type_10() {
-    let ast = check_parse("type nat = u32;");
+    let ast = check_parse("type nat is u32");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(false,32));
 }
 
 #[test]
 fn test_type_11() {
-    let ast = check_parse("type nat = u64;");
+    let ast = check_parse("type nat is u64");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(false,64));
 }
 
 #[test]
 fn test_type_12() {
-    let ast = check_parse("type nat = i32[];");
+    let ast = check_parse("type nat is i32[]");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,32));
     assert_eq!(ast.get(2),&Node::ArrayType(Type(1)));
@@ -88,7 +88,7 @@ fn test_type_12() {
 
 #[test]
 fn test_type_13() {
-    let ast = check_parse("type nat = i32[][];");
+    let ast = check_parse("type nat is i32[][]");
     check_name(ast.get(0),"nat");
     assert_eq!(ast.get(1),&Node::IntType(true,32));
     assert_eq!(ast.get(2),&Node::ArrayType(Type(1)));
@@ -97,7 +97,7 @@ fn test_type_13() {
 
 #[test]
 fn test_type_14() {
-    let ast = check_parse("type ref = &i16;");
+    let ast = check_parse("type ref is &i16");
     check_name(ast.get(0),"ref");
     assert_eq!(ast.get(1),&Node::IntType(true,16));
     assert_eq!(ast.get(2),&Node::ReferenceType(Type(1)));
@@ -105,7 +105,7 @@ fn test_type_14() {
 
 #[test]
 fn test_type_15() {
-    let ast = check_parse("type ref = &&i16;");
+    let ast = check_parse("type ref is &&i16");
     check_name(ast.get(0),"ref");
     assert_eq!(ast.get(1),&Node::IntType(true,16));
     assert_eq!(ast.get(2),&Node::ReferenceType(Type(1)));
@@ -114,7 +114,7 @@ fn test_type_15() {
 
 #[test]
 fn test_type_16() {
-    let ast = check_parse("type rec = {i64 f};");
+    let ast = check_parse("type rec is {i64 f}");
     check_name(ast.get(0),"rec");
     assert_eq!(ast.get(1),&Node::IntType(true,64));
     check_name(ast.get(2),"f");
@@ -123,7 +123,7 @@ fn test_type_16() {
 
 #[test]
 fn test_type_17() {
-    let ast = check_parse("type rec = {i32 f, u16 g};");
+    let ast = check_parse("type rec is {i32 f, u16 g}");
     check_name(ast.get(0),"rec");
     assert_eq!(ast.get(1),&Node::IntType(true,32));
     check_name(ast.get(2),"f");
@@ -134,7 +134,7 @@ fn test_type_17() {
 
 #[test]
 fn test_type_18() {
-    let ast = check_parse("type rar = (&u32)[];");
+    let ast = check_parse("type rar is (&u32)[]");
     check_name(ast.get(0),"rar");
     assert_eq!(ast.get(1),&Node::IntType(false,32));
     assert_eq!(ast.get(2),&Node::ReferenceType(Type(1)));
@@ -143,7 +143,7 @@ fn test_type_18() {
 
 #[test]
 fn test_type_19() {
-    let ast = check_parse("type rec = {&i8 f, u16[] g};");
+    let ast = check_parse("type rec is {&i8 f, u16[] g}");
     check_name(ast.get(0),"rec");
     assert_eq!(ast.get(1),&Node::IntType(true,8));
     assert_eq!(ast.get(2),&Node::ReferenceType(Type(1)));
