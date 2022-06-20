@@ -160,22 +160,22 @@ fn test_type_19() {
 
 #[test]
 fn test_method_01() {
-    check_parse_error("voi");
+    check_parse_error("func");
 }
 
 #[test]
 fn test_method_02() {
-    check_parse_error("void");
+    check_parse_error("function");
 }
 
 #[test]
 fn test_method_03() {
-    check_parse_error("void f");
+    check_parse_error("function f");
 }
 
 #[test]
 fn test_method_04() {
-    check_parse_error("void f(");
+    check_parse_error("function f(");
 }
 
 #[test]
@@ -185,11 +185,11 @@ fn test_method_05() {
 
 #[test]
 fn test_method_06() {
-    let ast = check_parse("void f() {}");
+    let ast = check_parse("function f()->():\n ");
     assert_eq!(ast.get(0),&Node::VoidType);
     check_name(ast.get(1),"f");
     assert_eq!(ast.get(2),&Node::BlockStmt(vec![]));
-    assert_eq!(ast.get(3),&Node::MethodDecl(Name(1),Type(0),vec![],Stmt(2)));
+    assert_eq!(ast.get(3),&Node::MethodDecl(Name(1),vec![],vec![],Stmt(2)));
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn test_method_07() {
     check_name(ast.get(3),"x");
     assert_eq!(ast.get(4),&Node::BlockStmt(vec![]));
     let params = vec![Parameter{declared:Type(2),name:Name(3)}];
-    assert_eq!(ast.get(5),&Node::MethodDecl(Name(1),Type(0),params,Stmt(4)));
+    assert_eq!(ast.get(5),&Node::MethodDecl(Name(1),vec![],params,Stmt(4)));
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn test_method_08() {
     check_name(ast.get(5),"b");
     assert_eq!(ast.get(6),&Node::BlockStmt(vec![]));
     let params = vec![Parameter{declared:Type(2),name:Name(3)},Parameter{declared:Type(4),name:Name(5)}];
-    assert_eq!(ast.get(7),&Node::MethodDecl(Name(1),Type(0),params,Stmt(6)));
+    assert_eq!(ast.get(7),&Node::MethodDecl(Name(1),vec![],params,Stmt(6)));
 }
 
 // ======================================================

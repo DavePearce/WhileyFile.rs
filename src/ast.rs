@@ -19,7 +19,8 @@ pub enum Node {
     Utf8(String),
     // Declarations
     TypeDecl(Name,Type),
-    MethodDecl(Name,Type,Vec<Parameter>,Stmt),
+    FunctionDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
+    MethodDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
     // Statements
     AssertStmt(Expr),
     BlockStmt(Vec<Stmt>),

@@ -73,25 +73,30 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    TokenType::Type => {
 		self.parse_decl_type()
 	    }
+            TokenType::Function => {
+                self.parse_decl_function()
+            }
 	    _ => {
-		self.parse_decl_function_or_method()
+                todo!("Unknown declaration")
 	    }
 	}
     }
 
-    pub fn parse_decl_function_or_method(&'b mut self) -> Result<Decl> {
-	// Type
-	let ret_type = self.parse_type()?;
-	// Identifier
+    pub fn parse_decl_function(&'b mut self) -> Result<Decl> {
+	// "function"
+	self.snap(TokenType::Function)?;
 	let name = self.parse_identifier()?;
-	// "(" [Type Identifier]+ ")"
 	let params = self.parse_decl_parameters()?;
-	// "{" [Stmt]* "}"
-	let body = self.parse_stmt_block()?;
-	// // Apply source map
-	// //let attr = (self.mapper)("test");
-	//
-	Ok(Decl::new(self.ast,Node::MethodDecl(name,ret_type,params,body)))
+        // "->"
+	self.gap_snap(TokenType::MinusGreater)?;
+        let returns = self.parse_decl_parameters()?;
+        self.gap_snap(TokenType::Colon)?;
+        self.gap_snap(TokenType::NewLine)?;
+	let body = self.parse_stmt_block(&"")?;
+	// Construct node
+        let n = Node::FunctionDecl(name,params,returns,body);
+        // Done
+        Ok(Decl::new(self.ast,n))
     }
 
     /// Parse a _property declaration_ in a Whiley source file.  A
@@ -169,18 +174,22 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Statements
     // =========================================================================
 
-    /// Parse a block of zero or more statements surrounded by curly
-    /// braces.  For example, `{ int x = 1; x = x + 1; }`.
-    pub fn parse_stmt_block(&mut self) -> Result<Stmt> {
+    /// Parse a block of zero or more statements.
+    pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<Stmt> {
     	let mut stmts : Vec<Stmt> = Vec::new();
-    	// "{"
-    	self.snap(TokenType::LeftCurly)?;
-    	// Keep going until a right curly
-    	while self.snap(TokenType::RightCurly).is_err() {
-    	    stmts.push(self.parse_stmt()?);
-    	}
-    	// Done
-    	Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
+        // Determine indentation level for this block
+    	let nindent = self.snap(TokenType::Gap)?;
+        // Check indentation level
+        if nindent.content.starts_with(indent) && indent.len() < nindent.len() {
+    	    // Parent indent is a strict prefix of block's indent.
+            println!("GOT HERE");
+    	//     while self.snap(TokenType::RightCurly).is_err() {
+    	//     stmts.push(self.parse_stmt()?);
+    	// }
+    	    // Done
+        }
+        //
+        Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
     }
 
     /// Parse an arbitrary statement.

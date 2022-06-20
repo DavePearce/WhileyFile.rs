@@ -28,6 +28,7 @@ pub enum TokenType {
     EqualEqual,
     False,
     For,
+    Function,
     Gap,
     Identifier,
     Is,
@@ -42,6 +43,7 @@ pub enum TokenType {
     LeftBrace,
     LeftCurly,
     LeftSquare,
+    Method,
     Minus,
     MinusGreater,
     New,
@@ -51,7 +53,7 @@ pub enum TokenType {
     Plus,
     Return,
     RightAngle,
-    RightAndleEquals,
+    RightAngleEquals,
     RightBrace,
     RightCurly,
     RightSlash,
@@ -107,11 +109,12 @@ impl<'a> Token<'a> {
     pub fn end(&self) -> usize {
 	self.start + self.content.len()
     }
-}
 
-/// Represents the end of the input stream.  This is helpful because
-/// it allows us to avoid using `Option<>` everywhere.
-//pub const EOF : Token<'static> = Token{kind: TokenType::EOF,start:usize::MAX,content: ""};
+    /// Get the length (in bytes) of this token.
+    pub fn len(&self) -> usize {
+        self.end() - self.start
+    }
+}
 
 // =================================================================
 // Lexer
@@ -265,6 +268,9 @@ impl<'a> Lexer<'a> {
 	    "for" => {
                 TokenType::For
             }
+            "function" => {
+                TokenType::Function
+            }
             "if" => {
                 TokenType::If
             }
@@ -282,6 +288,9 @@ impl<'a> Lexer<'a> {
             }
 	    "i64" => {
                 TokenType::I64
+            }
+            "method" => {
+                TokenType::Method
             }
 	    "new" => {
                 TokenType::New
@@ -330,18 +339,26 @@ impl<'a> Lexer<'a> {
     }
 
     /// Scan an operator from a given starting point.
-    fn scan_operator(&self, start: usize, ch: char) -> Token<'a> {
+    fn scan_operator(&mut self, start: usize, ch: char) -> Token<'a> {
         let end : usize;
         let kind = match ch {
 	    '&' => {
-		// FIXME: &&
-		end = start + 1;
-                TokenType::Ampersand
+                if self.matches('&') {
+                    end = start + 2;
+                    TokenType::AmpersandAmpersand
+                } else {
+		    end = start + 1;
+                    TokenType::Ampersand
+                }
 	    }
 	    '|' => {
-		// FIXME: ||
-		end = start + 1;
-                TokenType::Bar
+                if self.matches('|') {
+                    end = start + 2;
+                    TokenType::BarBar
+                } else {
+		    end = start + 1;
+                    TokenType::Bar
+                }
 	    }
 	    ':' => {
 		end = start + 1;
@@ -356,14 +373,22 @@ impl<'a> Lexer<'a> {
                 TokenType::Dot
 	    }
 	    '=' => {
-		// FIXME: ==
-		end = start + 1;
-                TokenType::Equal
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::EqualEqual
+                } else {
+		    end = start + 1;
+                    TokenType::Equal
+                }
 	    }
 	    '<' => {
-		// FIXME: <=
-                end = start + 1;
-                TokenType::LeftAngle
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::LeftAngleEquals
+                } else {
+                    end = start + 1;
+                    TokenType::LeftAngle
+                }
             }
             '(' => {
                 end = start + 1;
@@ -378,9 +403,13 @@ impl<'a> Lexer<'a> {
                 TokenType::LeftSquare
             }
 	    '-' => {
-		// FIXME: ->
-                end = start + 1;
-                TokenType::Minus
+                if self.matches('>') {
+                    end = start + 2;
+                    TokenType::MinusGreater
+                } else {
+                    end = start + 1;
+                    TokenType::Minus
+                }
             }
 	    '%' => {
                 end = start + 1;
@@ -391,9 +420,13 @@ impl<'a> Lexer<'a> {
                 TokenType::Plus
             }
             '>' => {
-		// FIXME: >=
-                end = start + 1;
-                TokenType::RightAngle
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::RightAngleEquals
+                } else {
+                    end = start + 1;
+                    TokenType::RightAngle
+                }
             }
 	    ')' => {
                 end = start + 1;
@@ -404,9 +437,13 @@ impl<'a> Lexer<'a> {
                 TokenType::RightCurly
             }
 	    '/' => {
-		// FIXME: //
-                end = start + 1;
-                TokenType::RightSlash
+                if self.matches('/') {
+                    end = start + 2;
+                    TokenType::RightSlashSlash
+                } else {
+                    end = start + 1;
+                    TokenType::RightSlash
+                }
             }
 	    ']' => {
                 end = start + 1;
@@ -417,9 +454,13 @@ impl<'a> Lexer<'a> {
                 TokenType::SemiColon
 	    }
 	    '!' => {
-		// FIXME: !=
-                end = start + 1;
-                TokenType::Shreak
+                if self.matches('=') {
+                    end = start + 2;
+                    TokenType::ShreakEquals
+                } else {
+                    end = start + 1;
+                    TokenType::Shreak
+                }
             }
 	    '*' => {
                 end = start + 1;
@@ -450,6 +491,22 @@ impl<'a> Lexer<'a> {
         // If we get here, then ran out of characters.  So everything
         // from the starting point onwards is part of the token.
         self.input.len()
+    }
+
+    /// Attempt to match following character
+    fn matches(&mut self, ch: char) -> bool {
+        match self.chars.peek() {
+            Some((_,c)) => {
+                if *c == ch {
+                    // Consume character
+                    self.chars.next();
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false
+        }
     }
 
     /// Construct appropriate EOF token for this lexer.  The key issue
