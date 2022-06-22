@@ -4,6 +4,7 @@ use crate::lexer::Lexer;
 use crate::lexer::Token;
 use crate::lexer::TokenType;
 use crate::ast::*;
+use crate::nodes::*;
 
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
@@ -141,7 +142,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
-	Ok(Decl::new(self.ast,Node::TypeDecl(name,typ_e)))
+	Ok(Decl::new(self.ast,Node::TypeDecl(TypeDecl::new(name,typ_e))))
     }
 
     /// Parse a list of parameter declarations

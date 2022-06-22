@@ -2,6 +2,7 @@ use std::fmt;
 use std::convert::From;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
+use crate::nodes::TypeDecl;
 
 // =============================================================================
 // Abstract Syntax Tree
@@ -18,7 +19,7 @@ pub enum Node {
     // Base
     Utf8(String),
     // Declarations
-    TypeDecl(Name,Type),
+    TypeDecl(TypeDecl),
     FunctionDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
     MethodDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
     // Statements
@@ -71,7 +72,7 @@ impl Decl {
         match t {
 	    Node::FunctionDecl(_,_,_,_) => true,
 	    Node::MethodDecl(_,_,_,_) => true,
-            Node::TypeDecl(_,_) => true,
+            Node::TypeDecl(_) => true,
             _ => false
         }
     }
@@ -227,8 +228,8 @@ impl From<Ref<'_,Node>> for Name {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Node::TypeDecl(n,t) => {
-                write!(f,"TypeDecl({},{})",n.0,t.0)
+            Node::TypeDecl(d) => {
+                write!(f,"TypeDecl({:?})",d)
             }
             Node::ArrayType(t) => {
                 write!(f,"ArrayType({})",t.0)
