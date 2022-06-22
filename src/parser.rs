@@ -95,7 +95,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::FunctionDecl(name,params,returns,body);
+        let n = Node::FunctionDecl(FunctionDecl::new(name,params,returns,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }

@@ -2,7 +2,7 @@ use std::fmt;
 use std::convert::From;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
-use crate::nodes::TypeDecl;
+use crate::nodes::{FunctionDecl,MethodDecl,TypeDecl};
 
 // =============================================================================
 // Abstract Syntax Tree
@@ -20,8 +20,8 @@ pub enum Node {
     Utf8(String),
     // Declarations
     TypeDecl(TypeDecl),
-    FunctionDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
-    MethodDecl(Name,Vec<Parameter>,Vec<Parameter>,Stmt),
+    FunctionDecl(FunctionDecl),
+    MethodDecl(MethodDecl),
     // Statements
     AssertStmt(Expr),
     BlockStmt(Vec<Stmt>),
@@ -70,8 +70,8 @@ impl Decl {
     /// Determine whether a given term is a declaration or not.
     pub fn is(t: &Node) -> bool {
         match t {
-	    Node::FunctionDecl(_,_,_,_) => true,
-	    Node::MethodDecl(_,_,_,_) => true,
+	    Node::FunctionDecl(_) => true,
+	    Node::MethodDecl(_) => true,
             Node::TypeDecl(_) => true,
             _ => false
         }
