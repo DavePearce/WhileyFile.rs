@@ -4,7 +4,6 @@ use crate::lexer::Lexer;
 use crate::lexer::Token;
 use crate::lexer::TokenType;
 use crate::ast::*;
-use crate::nodes::*;
 
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
@@ -95,7 +94,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::FunctionDecl(FunctionDecl::new(name,params,returns,body));
+        let n = Node::from(FunctionDecl::new(name,params,returns,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }
@@ -142,7 +141,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
-	Ok(Decl::new(self.ast,Node::TypeDecl(TypeDecl::new(name,typ_e))))
+	Ok(Decl::new(self.ast,Node::from(TypeDecl::new(name,typ_e))))
     }
 
     /// Parse a list of parameter declarations
@@ -197,7 +196,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    stmts.push(self.parse_stmt()?);
         }
         // Done
-        Ok(Stmt::new(self.ast,Node::BlockStmt(stmts)))
+        Ok(Stmt::new(self.ast,Node::from(BlockStmt::new(stmts))))
     }
 
     /// Parse an arbitrary statement.
@@ -237,14 +236,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// Expr
     	let expr = self.parse_expr()?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::AssertStmt(expr)))
+    	Ok(Stmt::new(self.ast,Node::from(AssertStmt::new(expr))))
     }
 
     pub fn parse_stmt_skip(&mut self) -> Result<Stmt> {
     	// "skip"
     	self.snap(TokenType::Skip)?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::SkipStmt))
+    	Ok(Stmt::new(self.ast,Node::from(SkipStmt::new())))
     }
 
     // =========================================================================

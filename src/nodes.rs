@@ -1,4 +1,4 @@
-use crate::ast::{Name,Parameter,Stmt,Type};
+use crate::ast::{Expr,Name,Parameter,Stmt,Type};
 
 // =============================================================================
 // Declarations
@@ -25,7 +25,8 @@ pub struct FunctionDecl {
 }
 
 impl FunctionDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>, returns: Vec<Parameter>, body: Stmt) -> Self {
+    pub fn new(name: Name, parameters: Vec<Parameter>,
+               returns: Vec<Parameter>, body: Stmt) -> Self {
         FunctionDecl{name,parameters,returns,body}
     }
 }
@@ -39,7 +40,8 @@ pub struct MethodDecl {
 }
 
 impl MethodDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>, returns: Vec<Parameter>, body: Stmt) -> Self {
+    pub fn new(name: Name, parameters: Vec<Parameter>,
+               returns: Vec<Parameter>, body: Stmt) -> Self {
         MethodDecl{name,parameters,returns,body}
     }
 }
@@ -47,6 +49,32 @@ impl MethodDecl {
 // =============================================================================
 // Statements
 // =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct AssertStmt {
+    operand: Expr
+}
+
+impl AssertStmt {
+    pub fn new(operand: Expr) -> Self { AssertStmt{operand} }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct BlockStmt {
+    stmts: Vec<Stmt>
+}
+
+impl BlockStmt {
+    pub fn new(stmts: Vec<Stmt>) -> Self { BlockStmt{stmts} }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct SkipStmt {}
+
+impl SkipStmt {
+    pub fn new() -> Self { SkipStmt{} }
+}
+
 
 // =============================================================================
 // Expressions

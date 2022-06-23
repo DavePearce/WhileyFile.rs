@@ -2,7 +2,7 @@ use std::fmt;
 use std::convert::From;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
-use crate::nodes::{FunctionDecl,MethodDecl,TypeDecl};
+pub use crate::nodes::*;
 
 // =============================================================================
 // Abstract Syntax Tree
@@ -23,9 +23,9 @@ pub enum Node {
     FunctionDecl(FunctionDecl),
     MethodDecl(MethodDecl),
     // Statements
-    AssertStmt(Expr),
-    BlockStmt(Vec<Stmt>),
-    SkipStmt,
+    AssertStmt(AssertStmt),
+    BlockStmt(BlockStmt),
+    SkipStmt(SkipStmt),
     // Expressions
     BoolExpr(bool),
     EqualsExpr(Expr,Expr),
@@ -78,6 +78,18 @@ impl Decl {
     }
 }
 
+impl From<FunctionDecl> for Node {
+    fn from(d: FunctionDecl) -> Self { Node::FunctionDecl(d) }
+}
+
+impl From<MethodDecl> for Node {
+    fn from(d: MethodDecl) -> Self { Node::MethodDecl(d) }
+}
+
+impl From<TypeDecl> for Node {
+    fn from(d: TypeDecl) -> Self { Node::TypeDecl(d) }
+}
+
 // =============================================================================
 // Statements
 // =============================================================================
@@ -100,10 +112,22 @@ impl Stmt {
         match t {
 	    Node::AssertStmt(_) => true,
 	    Node::BlockStmt(_) => true,
-	    Node::SkipStmt => true,
+	    Node::SkipStmt(_) => true,
             _ => false
         }
     }
+}
+
+impl From<AssertStmt> for Node {
+    fn from(s: AssertStmt) -> Self { Node::AssertStmt(s) }
+}
+
+impl From<BlockStmt> for Node {
+    fn from(s: BlockStmt) -> Self { Node::BlockStmt(s) }
+}
+
+impl From<SkipStmt> for Node {
+    fn from(s: SkipStmt) -> Self { Node::SkipStmt(s) }
 }
 
 // =============================================================================
