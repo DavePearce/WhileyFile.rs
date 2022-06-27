@@ -114,43 +114,22 @@ impl VarExpr {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ArrayType { pub element: Type }
-impl ArrayType {
-    pub fn new(element: Type) -> Self { ArrayType{element} }
-}
+pub struct ArrayType(pub Type);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BoolType { }
-impl BoolType {
-    pub fn new() -> Self { BoolType{} }
-}
+pub struct BoolType();
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct IntType { pub signed: bool, pub width: u8 }
-impl IntType {
-    pub fn new(signed: bool, width: u8) -> Self { IntType{signed,width} }
-}
+pub struct IntType(pub bool, pub u8); // { pub signed: bool, pub width: u8 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct NullType { }
-impl NullType {
-    pub fn new() -> Self { NullType{} }
-}
+pub struct NullType();
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct RecordType { pub fields: Vec<(Type,Name)> }
-impl RecordType {
-    pub fn new(fields: Vec<(Type,Name)>) -> Self { RecordType{fields} }
-}
+pub struct RecordType(pub Vec<(Type,Name)>);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ReferenceType { pub element: Type }
-impl ReferenceType {
-    pub fn new(element: Type) -> Self { ReferenceType{element} }
-}
+pub struct ReferenceType(pub Type);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct VoidType { }
-impl VoidType {
-    pub fn new() -> Self { VoidType{} }
-}
+pub struct VoidType();

@@ -355,7 +355,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	let mut t = self.parse_type_bracketed()?;
     	// Unwind references
     	for _i in 0..n {
-            t = Type::new(self.ast,Node::from(ReferenceType::new(t)));
+            t = Type::new(self.ast,Node::from(ReferenceType(t)));
     	}
     	// Done
     	Ok(t)
@@ -382,7 +382,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    fields.push((f_type,f_name));
     	}
     	// Done
-    	Ok(Type::new(self.ast,Node::from(RecordType::new(fields))))
+    	Ok(Type::new(self.ast,Node::from(RecordType(fields))))
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
@@ -392,7 +392,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// ([])*
     	while self.snap(TokenType::LeftSquare).is_ok() {
     	    self.snap(TokenType::RightSquare)?;
-            t = Type::new(self.ast,Node::from(ArrayType::new(t)));
+            t = Type::new(self.ast,Node::from(ArrayType(t)));
     	}
     	//
     	Ok(t)
@@ -419,41 +419,41 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Look at what we've got!
 	let typ_e : Type = match lookahead.kind {
 	    TokenType::Null => {
-		Type::new(self.ast,Node::from(NullType::new()))
+		Type::new(self.ast,Node::from(NullType()))
 	    }
 	    //
 	    TokenType::Bool => {
-                Type::new(self.ast,Node::from(BoolType::new()))
+                Type::new(self.ast,Node::from(BoolType()))
 	    }
 	    //
 	    TokenType::I8 => {
-                Type::new(self.ast,Node::from(IntType::new(true,8)))
+                Type::new(self.ast,Node::from(IntType(true,8)))
 	    }
 	    TokenType::I16 => {
-                Type::new(self.ast,Node::from(IntType::new(true,16)))
+                Type::new(self.ast,Node::from(IntType(true,16)))
 	    }
 	    TokenType::I32 => {
-                Type::new(self.ast,Node::from(IntType::new(true,32)))
+                Type::new(self.ast,Node::from(IntType(true,32)))
 	    }
 	    TokenType::I64 => {
-                Type::new(self.ast,Node::from(IntType::new(true,64)))
+                Type::new(self.ast,Node::from(IntType(true,64)))
 	    }
 	    //
 	    TokenType::U8 => {
-                Type::new(self.ast,Node::from(IntType::new(false,8)))
+                Type::new(self.ast,Node::from(IntType(false,8)))
 	    }
 	    TokenType::U16 => {
-                Type::new(self.ast,Node::from(IntType::new(false,16)))
+                Type::new(self.ast,Node::from(IntType(false,16)))
 	    }
 	    TokenType::U32 => {
-                Type::new(self.ast,Node::from(IntType::new(false,32)))
+                Type::new(self.ast,Node::from(IntType(false,32)))
 	    }
 	    TokenType::U64 => {
-                Type::new(self.ast,Node::from(IntType::new(false,64)))
+                Type::new(self.ast,Node::from(IntType(false,64)))
 	    }
 	    //
 	    TokenType::Void => {
-                Type::new(self.ast,Node::from(VoidType::new()))
+                Type::new(self.ast,Node::from(VoidType()))
 	    }
 	    _ => {
 		return Err(Error::new(lookahead,"unknown token encountered"));

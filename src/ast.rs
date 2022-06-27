@@ -317,7 +317,7 @@ impl fmt::Display for Node {
                 write!(f,"TypeDecl({:?})",d)
             }
             Node::ArrayType(t) => {
-                write!(f,"ArrayType({:?})",t.element)
+                write!(f,"ArrayType({:?})",t.0)
             }
             // Default for those without children
             _ => write!(f,"{:?}",self)
