@@ -191,7 +191,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// Parse remaining statements at same indent
         while self.lexer.peek().content == nindent.content {
             // Parse indentation
-            self.snap(TokenType::Gap);
+            self.snap(TokenType::Gap)?;
             // Parse statement
     	    stmts.push(self.parse_stmt()?);
         }
@@ -225,7 +225,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    }
     	};
         // Match line end
-        self.match_line_end();
+        self.match_line_end()?;
     	// Done
     	stmt
     }
@@ -259,7 +259,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    TokenType::LeftAngle => {
 		self.lexer.next();
 		let rhs = self.parse_expr_term()?;
-		Ok(Expr::new(self.ast,Node::LessThanExpr(lhs,rhs)))
+		Ok(Expr::new(self.ast,Node::from(LessThanExpr::new(lhs,rhs))))
 	    }
 	    _ => {
 		Ok(lhs)
@@ -273,22 +273,22 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	let expr = match lookahead.kind {
     	    TokenType::False => {
     		self.lexer.next();
-    		Expr::new(self.ast,Node::BoolExpr(false))
+    		Expr::new(self.ast,Node::from(BoolExpr::new(false)))
     	    }
 	    TokenType::Identifier => {
 		let n = self.parse_identifier();
-		Expr::new(self.ast,Node::VarExpr(n.unwrap()))
+		Expr::new(self.ast,Node::from(VarExpr::new(n.unwrap())))
 	    }
     	    TokenType::Integer => {
     	    	self.lexer.next();
-		Expr::new(self.ast,Node::IntExpr(lookahead.as_int()))
+		Expr::new(self.ast,Node::from(IntExpr::new(lookahead.as_int())))
     	    }
     	    TokenType::LeftBrace => {
     	    	return self.parse_expr_bracketed()
     	    }
     	    TokenType::True => {
     		self.lexer.next();
-    		Expr::new(self.ast,Node::BoolExpr(true))
+    		Expr::new(self.ast,Node::from(BoolExpr::new(true)))
     	    }
     	    _ => {
     		return Err(Error::new(lookahead,"unknown token encountered"))
@@ -354,8 +354,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// Type
     	let mut t = self.parse_type_bracketed()?;
     	// Unwind references
-    	for i in 0..n {
-            t = Type::new(self.ast,Node::ReferenceType(t));
+    	for _i in 0..n {
+            t = Type::new(self.ast,Node::from(ReferenceType::new(t)));
     	}
     	// Done
     	Ok(t)
@@ -382,7 +382,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    fields.push((f_type,f_name));
     	}
     	// Done
-    	Ok(Type::new(self.ast,Node::RecordType(fields)))
+    	Ok(Type::new(self.ast,Node::from(RecordType::new(fields))))
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
@@ -392,7 +392,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// ([])*
     	while self.snap(TokenType::LeftSquare).is_ok() {
     	    self.snap(TokenType::RightSquare)?;
-            t = Type::new(self.ast,Node::ArrayType(t));
+            t = Type::new(self.ast,Node::from(ArrayType::new(t)));
     	}
     	//
     	Ok(t)
@@ -419,41 +419,41 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Look at what we've got!
 	let typ_e : Type = match lookahead.kind {
 	    TokenType::Null => {
-		Type::new(self.ast,Node::NullType)
+		Type::new(self.ast,Node::from(NullType::new()))
 	    }
 	    //
 	    TokenType::Bool => {
-                Type::new(self.ast,Node::BoolType)
+                Type::new(self.ast,Node::from(BoolType::new()))
 	    }
 	    //
 	    TokenType::I8 => {
-                Type::new(self.ast,Node::IntType(true,8))
+                Type::new(self.ast,Node::from(IntType::new(true,8)))
 	    }
 	    TokenType::I16 => {
-                Type::new(self.ast,Node::IntType(true,16))
+                Type::new(self.ast,Node::from(IntType::new(true,16)))
 	    }
 	    TokenType::I32 => {
-                Type::new(self.ast,Node::IntType(true,32))
+                Type::new(self.ast,Node::from(IntType::new(true,32)))
 	    }
 	    TokenType::I64 => {
-                Type::new(self.ast,Node::IntType(true,64))
+                Type::new(self.ast,Node::from(IntType::new(true,64)))
 	    }
 	    //
 	    TokenType::U8 => {
-                Type::new(self.ast,Node::IntType(false,8))
+                Type::new(self.ast,Node::from(IntType::new(false,8)))
 	    }
 	    TokenType::U16 => {
-                Type::new(self.ast,Node::IntType(false,16))
+                Type::new(self.ast,Node::from(IntType::new(false,16)))
 	    }
 	    TokenType::U32 => {
-                Type::new(self.ast,Node::IntType(false,32))
+                Type::new(self.ast,Node::from(IntType::new(false,32)))
 	    }
 	    TokenType::U64 => {
-                Type::new(self.ast,Node::IntType(false,64))
+                Type::new(self.ast,Node::from(IntType::new(false,64)))
 	    }
 	    //
 	    TokenType::Void => {
-                Type::new(self.ast,Node::VoidType)
+                Type::new(self.ast,Node::from(VoidType::new()))
 	    }
 	    _ => {
 		return Err(Error::new(lookahead,"unknown token encountered"));
@@ -492,7 +492,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
         //
         match lookahead.kind {
             TokenType::Gap => {
-                self.snap(TokenType::Gap);
+                self.snap(TokenType::Gap).unwrap();
             }
             _ => {
                 // Do nothing
@@ -510,7 +510,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
                 Ok(())
             }
             TokenType::NewLine => {
-                self.snap(lookahead.kind);
+                self.snap(lookahead.kind)?;
                 Ok(())
             }
             _ => {
