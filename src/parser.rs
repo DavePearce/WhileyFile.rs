@@ -196,7 +196,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    stmts.push(self.parse_stmt()?);
         }
         // Done
-        Ok(Stmt::new(self.ast,Node::from(BlockStmt::new(stmts))))
+        Ok(Stmt::new(self.ast,Node::from(BlockStmt(stmts))))
     }
 
     /// Parse an arbitrary statement.
@@ -236,14 +236,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// Expr
     	let expr = self.parse_expr()?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(AssertStmt::new(expr))))
+    	Ok(Stmt::new(self.ast,Node::from(AssertStmt(expr))))
     }
 
     pub fn parse_stmt_skip(&mut self) -> Result<Stmt> {
     	// "skip"
     	self.snap(TokenType::Skip)?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(SkipStmt::new())))
+    	Ok(Stmt::new(self.ast,Node::from(SkipStmt())))
     }
 
     // =========================================================================
@@ -259,7 +259,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    TokenType::LeftAngle => {
 		self.lexer.next();
 		let rhs = self.parse_expr_term()?;
-		Ok(Expr::new(self.ast,Node::from(LessThanExpr::new(lhs,rhs))))
+		Ok(Expr::new(self.ast,Node::from(LessThanExpr(lhs,rhs))))
 	    }
 	    _ => {
 		Ok(lhs)
@@ -273,22 +273,22 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	let expr = match lookahead.kind {
     	    TokenType::False => {
     		self.lexer.next();
-    		Expr::new(self.ast,Node::from(BoolExpr::new(false)))
+    		Expr::new(self.ast,Node::from(BoolExpr(false)))
     	    }
 	    TokenType::Identifier => {
 		let n = self.parse_identifier();
-		Expr::new(self.ast,Node::from(VarExpr::new(n.unwrap())))
+		Expr::new(self.ast,Node::from(VarExpr(n.unwrap())))
 	    }
     	    TokenType::Integer => {
     	    	self.lexer.next();
-		Expr::new(self.ast,Node::from(IntExpr::new(lookahead.as_int())))
+		Expr::new(self.ast,Node::from(IntExpr(lookahead.as_int())))
     	    }
     	    TokenType::LeftBrace => {
     	    	return self.parse_expr_bracketed()
     	    }
     	    TokenType::True => {
     		self.lexer.next();
-    		Expr::new(self.ast,Node::from(BoolExpr::new(true)))
+    		Expr::new(self.ast,Node::from(BoolExpr(true)))
     	    }
     	    _ => {
     		return Err(Error::new(lookahead,"unknown token encountered"))

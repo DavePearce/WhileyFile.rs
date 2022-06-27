@@ -48,66 +48,35 @@ impl MethodDecl {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct AssertStmt {
-    operand: Expr
-}
-impl AssertStmt {
-    pub fn new(operand: Expr) -> Self { AssertStmt{operand} }
-}
+pub struct AssertStmt(pub Expr);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BlockStmt {
-    stmts: Vec<Stmt>
-}
-impl BlockStmt {
-    pub fn new(stmts: Vec<Stmt>) -> Self { BlockStmt{stmts} }
-}
+pub struct BlockStmt(pub Vec<Stmt>);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct SkipStmt {}
-impl SkipStmt {
-    pub fn new() -> Self { SkipStmt{} }
-}
+pub struct SkipStmt();
 
 // =============================================================================
 // Expressions
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BoolExpr { value: bool }
-impl BoolExpr {
-    pub fn new(value: bool) -> Self { BoolExpr{value} }
-}
+pub struct BoolExpr(pub bool);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct EqualsExpr { lhs: Expr, rhs: Expr }
-impl EqualsExpr {
-    pub fn new(lhs: Expr, rhs: Expr) -> Self { EqualsExpr{lhs,rhs} }
-}
+pub struct EqualsExpr(pub Expr, pub Expr);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct NotEqualsExpr { lhs: Expr, rhs: Expr }
-impl NotEqualsExpr {
-    pub fn new(lhs: Expr, rhs: Expr) -> Self { NotEqualsExpr{lhs,rhs} }
-}
+pub struct NotEqualsExpr(pub Expr, pub Expr);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct LessThanExpr { pub lhs: Expr, pub rhs: Expr }
-impl LessThanExpr {
-    pub fn new(lhs: Expr, rhs: Expr) -> Self { LessThanExpr{lhs,rhs} }
-}
+pub struct LessThanExpr(pub Expr, pub Expr);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct IntExpr { value: i32 }
-impl IntExpr {
-    pub fn new(value: i32) -> Self { IntExpr{value} }
-}
+pub struct IntExpr(pub i32);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct VarExpr { name: Name }
-impl VarExpr {
-    pub fn new(name: Name) -> Self { VarExpr{name} }
-}
+pub struct VarExpr(pub Name);
 
 // =============================================================================
 // Expressions
@@ -120,7 +89,7 @@ pub struct ArrayType(pub Type);
 pub struct BoolType();
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct IntType(pub bool, pub u8); // { pub signed: bool, pub width: u8 }
+pub struct IntType(pub bool, pub u8);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct NullType();
