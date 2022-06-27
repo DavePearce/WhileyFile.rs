@@ -87,9 +87,12 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	self.snap(TokenType::Function)?;
 	let name = self.parse_identifier()?;
 	let params = self.parse_decl_parameters()?;
-        // "->"
-	self.gap_snap(TokenType::MinusGreater)?;
-        let returns = self.parse_decl_parameters()?;
+        let returns = if self.lookahead(TokenType::MinusGreater) {
+	    self.gap_snap(TokenType::MinusGreater)?;
+            self.parse_decl_parameters()?
+        } else {
+            vec![]
+        };
         self.gap_snap(TokenType::Colon)?;
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
@@ -252,6 +255,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     pub fn parse_expr(&mut self) -> Result<Expr> {
     	let lhs = self.parse_expr_term()?;
+        // Skip whitespace
+        self.skip_gap();
 	// Check for binary expression
     	let lookahead = self.lexer.peek();
 	//
@@ -268,6 +273,9 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
+        // Skip whitespace
+        self.skip_gap();
+        //
     	let lookahead = self.lexer.peek();
     	//
     	let expr = match lookahead.kind {
@@ -518,6 +526,13 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	        Err(Error::new(lookahead,"expecting end-of-line"))
             }
         }
+    }
+
+    /// Check whether a specific token is next (ignoring gaps)
+    fn lookahead(&mut self, kind : TokenType) -> bool {
+        self.skip_gap();
+        let lookahead = self.lexer.peek();
+        return lookahead.kind == kind;
     }
 
     /// Match a given token type in the current stream, allowing for
