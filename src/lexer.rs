@@ -163,6 +163,11 @@ impl<'a> Lexer<'a> {
 	self.lookahead.unwrap()
     }
 
+    /// Check whether the lexer is at the end of file.
+    pub fn is_eof(&mut self) -> bool {
+        self.peek().kind == TokenType::EOF
+    }
+
     /// Get the next token in the sequence, or none if we have reached
     /// the end.
     pub fn next(&mut self) -> Token<'a> {

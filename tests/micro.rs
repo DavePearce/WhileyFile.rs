@@ -1,3 +1,4 @@
+use whiley_file::WhileyFile;
 use whiley_file::ast::*;
 use whiley_file::parser::Parser;
 
@@ -365,36 +366,26 @@ fn type_mapper<'a>(_: usize, _: Type) { }
 
 #[cfg(test)]
 fn check_parse(input: &str) -> Box<AbstractSyntaxTree> {
-    let mut ast = AbstractSyntaxTree::new();
-    let mut parser = Parser::new(input,&mut ast, source_mapper);
-    // Parse input
-    let d = parser.parse_decl();
-    println!("PARSED {:?}",d);
-    assert!(!d.is_err());
+    let mut wf = WhileyFile::from_str(input);
+    assert!(!wf.is_err());
     // Type input
     // let mut typer = TypeChecker::new(&mut ast, type_mapper);
     // let r = typer.check(d.unwrap());
     // assert!(!r.is_err());
     // Done
-    Box::new(ast)
+    wf.unwrap().ast
 }
 
 #[cfg(test)]
 fn check_parse_error(input: &str) {
-    let mut ast = AbstractSyntaxTree::new();
-    let mut p = Parser::new(input,&mut ast, source_mapper);
-    let d = p.parse_decl();
-    assert!(d.is_err());
+    let mut wf = WhileyFile::from_str(input);
+    assert!(wf.is_err());
 }
 
 #[cfg(test)]
 fn check_type_error(input: &str) {
-    let mut ast = AbstractSyntaxTree::new();
-    let mut parser = Parser::new(input,&mut ast, source_mapper);
-    // Parse input
-    let d = parser.parse_decl();
-    println!("PARSED {:?}",d);
-    assert!(!d.is_err());
+    let mut wf = WhileyFile::from_str(input);
+    assert!(!wf.is_err());
     // Type input
     // let mut typer = TypeChecker::new(&mut ast, type_mapper);
     // let r = typer.check(d.unwrap());
