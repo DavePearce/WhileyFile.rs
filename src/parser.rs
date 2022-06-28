@@ -1,5 +1,5 @@
-use std::result;
 use std::collections::HashMap;
+use crate::{Error,Result};
 use crate::lexer::Lexer;
 use crate::lexer::Token;
 use crate::lexer::TokenType;
@@ -7,28 +7,6 @@ use crate::ast::*;
 
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
-
-// =================================================================
-// Error
-// =================================================================
-
-/// Identifies possible errors stemming from the parser.
-#[derive(Debug)]
-pub struct Error {
-    pub start: usize,
-    pub end: usize,
-    pub message: &'static str
-}
-
-pub type Result<T> = result::Result<T, Error>;
-
-impl Error {
-    pub fn new<'a>(tok: Token<'a>, message: &'static str) -> Error {
-	let start = tok.start;
-	let end = tok.end();
-	Error{start,end,message}
-    }
-}
 
 // =================================================================
 // Parser
@@ -64,6 +42,19 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
     // Declarations
     // =========================================================================
+
+    /// Parse all declarations
+    pub fn parse(&mut self) -> Result<Vec<Decl>> {
+        let mut decls = Vec::new();
+        // Skip whitespace
+        while !self.lexer.is_eof() {
+            println!("GOING AROUND");
+            decls.push(self.parse_decl()?);
+            // Skip whitespace
+        }
+        // Done
+        Ok(decls)
+    }
 
     /// Parse an arbitrary declaration
     pub fn parse_decl(&'b mut self) -> Result<Decl> {
@@ -224,7 +215,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		self.parse_stmt_skip()
     	    }
     	    _ => {
-    		return Err(Error::new(lookahead,"unknown token encountered"));
+                let msg = format!("unknown token encountered ({})",lookahead.content);
+    		return Err(Error::new(lookahead,&msg));
     	    }
     	};
         // Match line end
@@ -299,7 +291,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		Expr::new(self.ast,Node::from(BoolExpr(true)))
     	    }
     	    _ => {
-    		return Err(Error::new(lookahead,"unknown token encountered"))
+                let msg = format!("unknown token encountered ({})",lookahead.content);
+    		return Err(Error::new(lookahead,&msg));
     	    }
     	};
     	//
@@ -464,7 +457,8 @@ where 'a :'b, F : FnMut(usize,&'a str) {
                 Type::new(self.ast,Node::from(VoidType()))
 	    }
 	    _ => {
-		return Err(Error::new(lookahead,"unknown token encountered"));
+                let msg = format!("unknown token encountered ({})",lookahead.content);
+    		return Err(Error::new(lookahead,&msg));
 	    }
 	};
 	// Move over it
