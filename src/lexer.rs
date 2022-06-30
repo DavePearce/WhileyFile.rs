@@ -43,6 +43,7 @@ pub enum TokenType {
     LeftBrace,
     LeftCurly,
     LeftSquare,
+    LineComment,
     Method,
     Minus,
     MinusGreater,
@@ -240,102 +241,38 @@ impl<'a> Lexer<'a> {
         let end = self.scan_whilst(is_identifier_middle);
         let content = &self.input[start..end];
         let kind = match content {
-	    "assert" => {
-                TokenType::Assert
-            }
-	    "bool" => {
-                TokenType::Bool
-            }
-	    "break" => {
-                TokenType::Break
-            }
-	    "case" => {
-                TokenType::Case
-            }
-	    "continue" => {
-                TokenType::Continue
-            }
-	    "default" => {
-                TokenType::Default
-            }
-	    "Do" => {
-                TokenType::Do
-            }
-	    "delete" => {
-                TokenType::Delete
-            }
-	    "else" => {
-                TokenType::Else
-            }
-	    "false" => {
-                TokenType::False
-            }
-	    "for" => {
-                TokenType::For
-            }
-            "function" => {
-                TokenType::Function
-            }
-            "if" => {
-                TokenType::If
-            }
-            "is" => {
-                TokenType::Is
-            }
-	    "i8" => {
-                TokenType::I8
-            }
-	    "i16" => {
-                TokenType::I16
-            }
-	    "i32" => {
-                TokenType::I32
-            }
-	    "i64" => {
-                TokenType::I64
-            }
-            "method" => {
-                TokenType::Method
-            }
-	    "new" => {
-                TokenType::New
-            }
-	    "null" => {
-                TokenType::Null
-            }
-	    "return" => {
-                TokenType::Return
-            }
-	    "skip" => {
-                TokenType::Skip
-            }
-	    "switch" => {
-                TokenType::Switch
-            }
-	    "true" => {
-                TokenType::True
-            }
-	    "type" => {
-                TokenType::Type
-            }
-            "while" => {
-                TokenType::While
-            }
-	    "u8" => {
-                TokenType::U8
-            }
-	    "u16" => {
-                TokenType::U16
-            }
-	    "u32" => {
-                TokenType::U32
-            }
-	    "u64" => {
-                TokenType::U64
-            }
-	    "void" => {
-                TokenType::Void
-            }
+	    "assert" => TokenType::Assert,
+	    "bool" => TokenType::Bool,
+	    "break" => TokenType::Break,
+	    "case" => TokenType::Case,
+	    "continue" => TokenType::Continue,
+	    "default" => TokenType::Default,
+	    "do" => TokenType::Do,
+	    "delete" => TokenType::Delete,
+	    "else" => TokenType::Else,
+	    "false" => TokenType::False,
+	    "for" => TokenType::For,
+            "function" => TokenType::Function,
+            "if" => TokenType::If,
+            "is" => TokenType::Is,
+	    "i8" => TokenType::I8,
+	    "i16" => TokenType::I16,
+	    "i32" => TokenType::I32,
+	    "i64" => TokenType::I64,
+            "method" => TokenType::Method,
+	    "new" => TokenType::New,
+	    "null" => TokenType::Null,
+	    "return" => TokenType::Return,
+	    "skip" => TokenType::Skip,
+	    "switch" => TokenType::Switch,
+	    "true" => TokenType::True,
+	    "type" => TokenType::Type,
+            "while" => TokenType::While,
+	    "u8" => TokenType::U8,
+	    "u16" => TokenType::U16,
+	    "u32" => TokenType::U32,
+	    "u64" => TokenType::U64,
+	    "void" => TokenType::Void,
             _ => {
                 TokenType::Identifier
             }
@@ -443,8 +380,7 @@ impl<'a> Lexer<'a> {
             }
 	    '/' => {
                 if self.matches('/') {
-                    end = start + 2;
-                    TokenType::RightSlashSlash
+                    return self.scan_line_comment(start);
                 } else {
                     end = start + 1;
                     TokenType::RightSlash
@@ -476,6 +412,15 @@ impl<'a> Lexer<'a> {
             }
         };
         let content = &self.input[start..end];
+        Token{kind,start,content}
+    }
+
+    /// Scan a line comment which runs all the way until the end of the
+    /// line.  We can assume the comment start has already been matched.
+    fn scan_line_comment(&mut self, start:usize) -> Token<'a> {
+        let end = self.scan_whilst(|c| c != '\n');
+        let content = &self.input[start..end];
+        let kind = TokenType::LineComment;
         Token{kind,start,content}
     }
 
@@ -804,6 +749,62 @@ fn test_44() {
     assert!(l.peek().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::EOF);
+}
+
+// Comments
+
+#[test]
+fn test_50() {
+    let mut l = Lexer::new("// hello world");
+    assert!(l.peek().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_51() {
+    let mut l = Lexer::new("// hello world\n");
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_52() {
+    let mut l = Lexer::new("  // hello world\n");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_53() {
+    let mut l = Lexer::new("  // hello world\n// another comment");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.peek().content == "// another comment");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_54() {
+    let mut l = Lexer::new("  /// hello world");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "/// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
 }
 
 // Combinations
