@@ -241,102 +241,38 @@ impl<'a> Lexer<'a> {
         let end = self.scan_whilst(is_identifier_middle);
         let content = &self.input[start..end];
         let kind = match content {
-	    "assert" => {
-                TokenType::Assert
-            }
-	    "bool" => {
-                TokenType::Bool
-            }
-	    "break" => {
-                TokenType::Break
-            }
-	    "case" => {
-                TokenType::Case
-            }
-	    "continue" => {
-                TokenType::Continue
-            }
-	    "default" => {
-                TokenType::Default
-            }
-	    "Do" => {
-                TokenType::Do
-            }
-	    "delete" => {
-                TokenType::Delete
-            }
-	    "else" => {
-                TokenType::Else
-            }
-	    "false" => {
-                TokenType::False
-            }
-	    "for" => {
-                TokenType::For
-            }
-            "function" => {
-                TokenType::Function
-            }
-            "if" => {
-                TokenType::If
-            }
-            "is" => {
-                TokenType::Is
-            }
-	    "i8" => {
-                TokenType::I8
-            }
-	    "i16" => {
-                TokenType::I16
-            }
-	    "i32" => {
-                TokenType::I32
-            }
-	    "i64" => {
-                TokenType::I64
-            }
-            "method" => {
-                TokenType::Method
-            }
-	    "new" => {
-                TokenType::New
-            }
-	    "null" => {
-                TokenType::Null
-            }
-	    "return" => {
-                TokenType::Return
-            }
-	    "skip" => {
-                TokenType::Skip
-            }
-	    "switch" => {
-                TokenType::Switch
-            }
-	    "true" => {
-                TokenType::True
-            }
-	    "type" => {
-                TokenType::Type
-            }
-            "while" => {
-                TokenType::While
-            }
-	    "u8" => {
-                TokenType::U8
-            }
-	    "u16" => {
-                TokenType::U16
-            }
-	    "u32" => {
-                TokenType::U32
-            }
-	    "u64" => {
-                TokenType::U64
-            }
-	    "void" => {
-                TokenType::Void
-            }
+	    "assert" => TokenType::Assert,
+	    "bool" => TokenType::Bool,
+	    "break" => TokenType::Break,
+	    "case" => TokenType::Case,
+	    "continue" => TokenType::Continue,
+	    "default" => TokenType::Default,
+	    "do" => TokenType::Do,
+	    "delete" => TokenType::Delete,
+	    "else" => TokenType::Else,
+	    "false" => TokenType::False,
+	    "for" => TokenType::For,
+            "function" => TokenType::Function,
+            "if" => TokenType::If,
+            "is" => TokenType::Is,
+	    "i8" => TokenType::I8,
+	    "i16" => TokenType::I16,
+	    "i32" => TokenType::I32,
+	    "i64" => TokenType::I64,
+            "method" => TokenType::Method,
+	    "new" => TokenType::New,
+	    "null" => TokenType::Null,
+	    "return" => TokenType::Return,
+	    "skip" => TokenType::Skip,
+	    "switch" => TokenType::Switch,
+	    "true" => TokenType::True,
+	    "type" => TokenType::Type,
+            "while" => TokenType::While,
+	    "u8" => TokenType::U8,
+	    "u16" => TokenType::U16,
+	    "u32" => TokenType::U32,
+	    "u64" => TokenType::U64,
+	    "void" => TokenType::Void,
             _ => {
                 TokenType::Identifier
             }
