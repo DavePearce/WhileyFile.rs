@@ -19,7 +19,7 @@ where F : FnMut(usize,&'a str) {
     /// Provides access to our token stream.
     lexer: Lexer<'a>,
     /// Provides access to the ast
-    pub ast: AbstractSyntaxTree,
+    ast: &'a mut AbstractSyntaxTree,
     /// Provides name cache
     env: Env,
     /// Provides mechanism for source maps
@@ -30,9 +30,8 @@ where F : FnMut(usize,&'a str) {
 impl<'a,'b,F> Parser<'a,F>
 where 'a :'b, F : FnMut(usize,&'a str) {
 
-    pub fn new(input: &'a str, mapper : F) -> Self {
+    pub fn new(input: &'a str, ast: &'a mut AbstractSyntaxTree, mapper : F) -> Self {
 	let env : Env = HashMap::new();
-        let ast = AbstractSyntaxTree::new();
 	Self { lexer: Lexer::new(input), ast, env, mapper }
     }
 
@@ -91,7 +90,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Construct node
         let n = Node::from(FunctionDecl::new(name,params,returns,body));
         // Done
-        Ok(Decl::new(&mut self.ast,n))
+        Ok(Decl::new(self.ast,n))
     }
 
     /// Parse a _property declaration_ in a Whiley source file.  A
@@ -136,7 +135,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
-	Ok(Decl::new(&mut self.ast,Node::from(TypeDecl::new(name,typ_e))))
+	Ok(Decl::new(self.ast,Node::from(TypeDecl::new(name,typ_e))))
     }
 
     /// Parse a list of parameter declarations
@@ -191,7 +190,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    stmts.push(self.parse_stmt()?);
         }
         // Done
-        Ok(Stmt::new(&mut self.ast,Node::from(BlockStmt(stmts))))
+        Ok(Stmt::new(self.ast,Node::from(BlockStmt(stmts))))
     }
 
     /// Parse an arbitrary statement.
@@ -231,14 +230,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// Expr
     	let expr = self.parse_expr()?;
     	// Done
-    	Ok(Stmt::new(&mut self.ast,Node::from(AssertStmt(expr))))
+    	Ok(Stmt::new(self.ast,Node::from(AssertStmt(expr))))
     }
 
     pub fn parse_stmt_skip(&mut self) -> Result<'a,Stmt> {
     	// "skip"
     	self.snap(TokenType::Skip)?;
     	// Done
-    	Ok(Stmt::new(&mut self.ast,Node::from(SkipStmt())))
+    	Ok(Stmt::new(self.ast,Node::from(SkipStmt())))
     }
 
     // =========================================================================
@@ -256,7 +255,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    TokenType::LeftAngle => {
 		self.lexer.next();
 		let rhs = self.parse_expr_term()?;
-		Ok(Expr::new(&mut self.ast,Node::from(LessThanExpr(lhs,rhs))))
+		Ok(Expr::new(self.ast,Node::from(LessThanExpr(lhs,rhs))))
 	    }
 	    _ => {
 		Ok(lhs)
@@ -273,22 +272,22 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	let expr = match lookahead.kind {
     	    TokenType::False => {
     		self.lexer.next();
-    		Expr::new(&mut self.ast,Node::from(BoolExpr(false)))
+    		Expr::new(self.ast,Node::from(BoolExpr(false)))
     	    }
 	    TokenType::Identifier => {
 		let n = self.parse_identifier();
-		Expr::new(&mut self.ast,Node::from(VarExpr(n.unwrap())))
+		Expr::new(self.ast,Node::from(VarExpr(n.unwrap())))
 	    }
     	    TokenType::Integer => {
     	    	self.lexer.next();
-		Expr::new(&mut self.ast,Node::from(IntExpr(lookahead.as_int())))
+		Expr::new(self.ast,Node::from(IntExpr(lookahead.as_int())))
     	    }
     	    TokenType::LeftBrace => {
     	    	return self.parse_expr_bracketed()
     	    }
     	    TokenType::True => {
     		self.lexer.next();
-    		Expr::new(&mut self.ast,Node::from(BoolExpr(true)))
+    		Expr::new(self.ast,Node::from(BoolExpr(true)))
     	    }
     	    _ => {
     		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
@@ -355,7 +354,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	let mut t = self.parse_type_bracketed()?;
     	// Unwind references
     	for _i in 0..n {
-            t = Type::new(&mut self.ast,Node::from(ReferenceType(t)));
+            t = Type::new(self.ast,Node::from(ReferenceType(t)));
     	}
     	// Done
     	Ok(t)
@@ -382,7 +381,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	    fields.push((f_type,f_name));
     	}
     	// Done
-    	Ok(Type::new(&mut self.ast,Node::from(RecordType(fields))))
+    	Ok(Type::new(self.ast,Node::from(RecordType(fields))))
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
@@ -392,7 +391,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	// ([])*
     	while self.snap(TokenType::LeftSquare).is_ok() {
     	    self.snap(TokenType::RightSquare)?;
-            t = Type::new(&mut self.ast,Node::from(ArrayType(t)));
+            t = Type::new(self.ast,Node::from(ArrayType(t)));
     	}
     	//
     	Ok(t)
@@ -419,41 +418,41 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	// Look at what we've got!
 	let typ_e : Type = match lookahead.kind {
 	    TokenType::Null => {
-		Type::new(&mut self.ast,Node::from(NullType()))
+		Type::new(self.ast,Node::from(NullType()))
 	    }
 	    //
 	    TokenType::Bool => {
-                Type::new(&mut self.ast,Node::from(BoolType()))
+                Type::new(self.ast,Node::from(BoolType()))
 	    }
 	    //
 	    TokenType::I8 => {
-                Type::new(&mut self.ast,Node::from(IntType(true,8)))
+                Type::new(self.ast,Node::from(IntType(true,8)))
 	    }
 	    TokenType::I16 => {
-                Type::new(&mut self.ast,Node::from(IntType(true,16)))
+                Type::new(self.ast,Node::from(IntType(true,16)))
 	    }
 	    TokenType::I32 => {
-                Type::new(&mut self.ast,Node::from(IntType(true,32)))
+                Type::new(self.ast,Node::from(IntType(true,32)))
 	    }
 	    TokenType::I64 => {
-                Type::new(&mut self.ast,Node::from(IntType(true,64)))
+                Type::new(self.ast,Node::from(IntType(true,64)))
 	    }
 	    //
 	    TokenType::U8 => {
-                Type::new(&mut self.ast,Node::from(IntType(false,8)))
+                Type::new(self.ast,Node::from(IntType(false,8)))
 	    }
 	    TokenType::U16 => {
-                Type::new(&mut self.ast,Node::from(IntType(false,16)))
+                Type::new(self.ast,Node::from(IntType(false,16)))
 	    }
 	    TokenType::U32 => {
-                Type::new(&mut self.ast,Node::from(IntType(false,32)))
+                Type::new(self.ast,Node::from(IntType(false,32)))
 	    }
 	    TokenType::U64 => {
-                Type::new(&mut self.ast,Node::from(IntType(false,64)))
+                Type::new(self.ast,Node::from(IntType(false,64)))
 	    }
 	    //
 	    TokenType::Void => {
-                Type::new(&mut self.ast,Node::from(VoidType()))
+                Type::new(self.ast,Node::from(VoidType()))
 	    }
 	    _ => {
     		return Err(Error::new(lookahead, ErrorCode::UnexpectedToken));
@@ -473,7 +472,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
         self.skip_gap();
 	let tok = self.snap(TokenType::Identifier)?;
 	// FIXME: should employ cache!
-	Ok(Name::new(&mut self.ast,&tok.content))
+	Ok(Name::new(self.ast,&tok.content))
     }
 
     // =========================================================================

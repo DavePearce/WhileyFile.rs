@@ -51,11 +51,12 @@ pub struct WhileyFile {
 
 impl WhileyFile {
     pub fn from_str<'a>(input: &'a str) -> Result<'a,WhileyFile> {
-	let mut parser = Parser::new(input, source_mapper);
+        let mut ast = AbstractSyntaxTree::new();
+	let mut parser = Parser::new(input, &mut ast, source_mapper);
 	// Parse entire file
 	match parser.parse() {
             Ok(_) => {
-	        Ok(WhileyFile{ast:Box::new(parser.ast)})
+	        Ok(WhileyFile{ast:Box::new(ast)})
             }
             Err(e) => {
                 Err(e)
