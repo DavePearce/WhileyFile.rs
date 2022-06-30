@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Error,Result};
+use crate::{Error,ErrorCode,Result};
 use crate::lexer::Lexer;
 use crate::lexer::Token;
 use crate::lexer::TokenType;
@@ -14,12 +14,12 @@ type Env = HashMap<String, Name>;
 
 /// Response for turning a stream of tokens into an Abstract Syntax
 /// Tree and/or producing error messages along the way.
-pub struct Parser<'a, F>
+pub struct Parser<'a, 'b, F>
 where F : FnMut(usize,&'a str) {
     /// Provides access to our token stream.
     lexer: Lexer<'a>,
     /// Provides access to the ast
-    ast: &'a mut AbstractSyntaxTree,
+    ast: &'b mut AbstractSyntaxTree,
     /// Provides name cache
     env: Env,
     /// Provides mechanism for source maps
@@ -27,10 +27,10 @@ where F : FnMut(usize,&'a str) {
 
 }
 
-impl<'a,'b,F> Parser<'a,F>
-where 'a :'b, F : FnMut(usize,&'a str) {
+impl<'a,'b,'c, F> Parser<'a,'b,F>
+where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
-    pub fn new(input: &'a str, ast: &'a mut AbstractSyntaxTree, mapper : F) -> Self {
+    pub fn new(input: &'a str, ast: &'b mut AbstractSyntaxTree, mapper : F) -> Self {
 	let env : Env = HashMap::new();
 	Self { lexer: Lexer::new(input), ast, env, mapper }
     }
@@ -44,7 +44,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     /// Parse all declarations
-    pub fn parse(&mut self) -> Result<Vec<Decl>> {
+    pub fn parse(&'c mut self) -> Result<'a, ()> {
         let mut decls = Vec::new();
         // Skip whitespace
         while !self.lexer.is_eof() {
@@ -53,11 +53,11 @@ where 'a :'b, F : FnMut(usize,&'a str) {
             // Skip whitespace
         }
         // Done
-        Ok(decls)
+        Ok(())
     }
 
     /// Parse an arbitrary declaration
-    pub fn parse_decl(&'b mut self) -> Result<Decl> {
+    pub fn parse_decl(&'c mut self) -> Result<'a,Decl> {
 	let lookahead = self.lexer.peek();
 	// Attempt to parse declaration
 	match lookahead.kind {
@@ -73,7 +73,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	}
     }
 
-    pub fn parse_decl_function(&'b mut self) -> Result<Decl> {
+    pub fn parse_decl_function(&'c mut self) -> Result<'a,Decl> {
 	// "function"
 	self.snap(TokenType::Function)?;
 	let name = self.parse_identifier()?;
@@ -105,7 +105,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// Properties are permitted to have `requires` clauses, but not
     /// `ensures` clauses.  Their body is also constrained to admin
     /// only non-looping statements.
-    pub fn parse_decl_property(&'b mut self) -> Result<Decl> {
+    pub fn parse_decl_property(&'c mut self) -> Result<'a,Decl> {
         todo![];
     }
 
@@ -120,7 +120,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// represents the set of natural numbers (i.e the non-negative
     /// integers). Type declarations may also have modifiers, such as
     /// `public` and `private`.
-    pub fn parse_decl_type(&'b mut self) -> Result<Decl> {
+    pub fn parse_decl_type(&'c mut self) -> Result<'a,Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
 	let name = self.parse_identifier()?;
@@ -139,7 +139,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     /// Parse a list of parameter declarations
-    pub fn parse_decl_parameters(&mut self) -> Result<Vec<Parameter>> {
+    pub fn parse_decl_parameters(&mut self) -> Result<'a,Vec<Parameter>> {
     	let mut params : Vec<Parameter> = vec![];
         // Skip any preceeding gap
         self.skip_gap();
@@ -171,14 +171,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// level.  All statements in the block must have a strictly
     /// greater indentation (i.e. must be the given indentation +
     /// more).  There must be at least one statement to form a block.
-    pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<Stmt> {
+    pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<'a,Stmt> {
     	let mut stmts : Vec<Stmt> = Vec::new();
         // Determine indentation level for this block
     	let nindent = self.snap(TokenType::Gap)?;
         // Sanity check indentation
         if !nindent.content.starts_with(indent) || indent.len() == nindent.len() {
     	    // Parent indent not a strict prefix of current indent.
-            return Err(Error::new(nindent,"invalid block"));
+            return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
         }
         // Parse initial statement
     	stmts.push(self.parse_stmt()?);
@@ -194,7 +194,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     /// Parse an arbitrary statement.
-    pub fn parse_stmt(&mut self) -> Result<Stmt> {
+    pub fn parse_stmt(&mut self) -> Result<'a,Stmt> {
     	let lookahead = self.lexer.peek();
     	//
     	match lookahead.kind {
@@ -204,7 +204,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Parse a unit statement.  This one which does not contain other
     /// statements, and is terminated with a ";".
-    pub fn parse_unit_stmt(&mut self) -> Result<Stmt> {
+    pub fn parse_unit_stmt(&mut self) -> Result<'a,Stmt> {
     	let lookahead = self.lexer.peek();
     	//
     	let stmt = match lookahead.kind {
@@ -215,8 +215,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		self.parse_stmt_skip()
     	    }
     	    _ => {
-                let msg = format!("unknown token encountered ({})",lookahead.content);
-    		return Err(Error::new(lookahead,&msg));
+    		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
     	    }
     	};
         // Match line end
@@ -225,7 +224,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	stmt
     }
 
-    pub fn parse_stmt_assert(&mut self) -> Result<Stmt> {
+    pub fn parse_stmt_assert(&mut self) -> Result<'a,Stmt> {
     	// "assert"
     	self.snap(TokenType::Assert)?;
     	// Expr
@@ -234,7 +233,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	Ok(Stmt::new(self.ast,Node::from(AssertStmt(expr))))
     }
 
-    pub fn parse_stmt_skip(&mut self) -> Result<Stmt> {
+    pub fn parse_stmt_skip(&mut self) -> Result<'a,Stmt> {
     	// "skip"
     	self.snap(TokenType::Skip)?;
     	// Done
@@ -245,7 +244,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Expressions
     // =========================================================================
 
-    pub fn parse_expr(&mut self) -> Result<Expr> {
+    pub fn parse_expr(&mut self) -> Result<'a,Expr> {
     	let lhs = self.parse_expr_term()?;
         // Skip whitespace
         self.skip_gap();
@@ -264,7 +263,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	}
     }
 
-    pub fn parse_expr_term(&mut self) -> Result<Expr> {
+    pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
         // Skip whitespace
         self.skip_gap();
         //
@@ -291,15 +290,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     		Expr::new(self.ast,Node::from(BoolExpr(true)))
     	    }
     	    _ => {
-                let msg = format!("unknown token encountered ({})",lookahead.content);
-    		return Err(Error::new(lookahead,&msg));
+    		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
     	    }
     	};
     	//
     	Ok(expr)
     }
 
-    pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
+    pub fn parse_expr_bracketed(&mut self) -> Result<'a,Expr> {
     	// "("
     	self.snap(TokenType::LeftBrace)?;
     	// Expr
@@ -314,18 +312,18 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Types
     // =========================================================================
 
-    pub fn parse_type(&mut self) -> Result<Type> {
+    pub fn parse_type(&mut self) -> Result<'a,Type> {
         self.skip_gap();
 	self.parse_type_compound()
     }
 
-    pub fn parse_type_compound(&mut self) -> Result<Type> {
+    pub fn parse_type_compound(&mut self) -> Result<'a,Type> {
 	let lookahead = self.lexer.peek();
 	// Attemp to distinguish
 	match lookahead.kind {
 	    TokenType::EOF => {
 		// Something went wrong
-		Err(Error::new(lookahead,"unexpected end-of-file"))
+		Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
 	    }
 	    TokenType::Ampersand => {
 	    	// Looks like a reference type
@@ -344,7 +342,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Parse a reference type, such as `&i32`, `&(i32[])`, `&&u16`,
     /// etc.
-    pub fn parse_type_ref(&mut self) -> Result<Type> {
+    pub fn parse_type_ref(&mut self) -> Result<'a,Type> {
     	let mut n = 1;
     	// "&"
     	self.snap(TokenType::Ampersand)?;
@@ -364,7 +362,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Parse a record type, such as `{ i32 f }`, `{ bool f, u64 f }`,
     /// `{ &bool f, u64[] f }`, etc.
-    pub fn parse_type_record(&mut self) -> Result<Type> {
+    pub fn parse_type_record(&mut self) -> Result<'a,Type> {
     	let mut fields : Vec<(Type,Name)> = vec![];
     	// "{"
     	self.snap(TokenType::LeftCurly)?;
@@ -387,7 +385,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
-    pub fn parse_type_array(&'b mut self) -> Result<Type> {
+    pub fn parse_type_array(&'c mut self) -> Result<'a,Type> {
     	// Type
     	let mut t = self.parse_type_bracketed()?;
     	// ([])*
@@ -401,7 +399,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Parse a type which may (or may not) be bracketed.  For
     /// example, in `(&int)[]` the type `&int` is bracketed.
-    pub fn parse_type_bracketed(&'b mut self) -> Result<Type> {
+    pub fn parse_type_bracketed(&'c mut self) -> Result<'a,Type> {
     	// Try and match bracket!
     	if self.snap(TokenType::LeftBrace).is_ok() {
     	    // Bingo!
@@ -415,7 +413,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	}
     }
 
-    pub fn parse_type_base(&'b mut self) -> Result<Type> {
+    pub fn parse_type_base(&'c mut self) -> Result<'a,Type> {
 	let lookahead = self.lexer.peek();
 	// Look at what we've got!
 	let typ_e : Type = match lookahead.kind {
@@ -457,8 +455,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
                 Type::new(self.ast,Node::from(VoidType()))
 	    }
 	    _ => {
-                let msg = format!("unknown token encountered ({})",lookahead.content);
-    		return Err(Error::new(lookahead,&msg));
+    		return Err(Error::new(lookahead, ErrorCode::UnexpectedToken));
 	    }
 	};
 	// Move over it
@@ -471,7 +468,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // Misc
     // =========================================================================
 
-    pub fn parse_identifier(&mut self) -> Result<Name> {
+    pub fn parse_identifier(&mut self) -> Result<'a,Name> {
         self.skip_gap();
 	let tok = self.snap(TokenType::Identifier)?;
 	// FIXME: should employ cache!
@@ -504,7 +501,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Match the end of a line which is used, for example, to signal
     /// the end of the current statement.
-    fn match_line_end(&mut self) -> Result<()> {
+    fn match_line_end(&mut self) -> Result<'a,()> {
         let lookahead = self.lexer.peek();
         //
         match lookahead.kind {
@@ -517,7 +514,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
             }
             _ => {
 	        // Reject
-	        Err(Error::new(lookahead,"expecting end-of-line"))
+	        Err(Error::new(lookahead,ErrorCode::ExpectedLineEnd))
             }
         }
     }
@@ -531,13 +528,13 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Match a given token type in the current stream, allowing for
     /// an optional gap beforehand.
-    fn gap_snap(&mut self, kind : TokenType) -> Result<Token<'a>> {
+    fn gap_snap(&mut self, kind : TokenType) -> Result<'a,Token<'a>> {
         self.skip_gap();
         self.snap(kind)
     }
 
     /// Match a given token type in the current stream without consuming it.
-    fn matches(&mut self, kind : TokenType) -> Result<Token<'a>> {
+    fn matches(&mut self, kind : TokenType) -> Result<'a,Token<'a>> {
         // Peek at the next token
 	let lookahead = self.lexer.peek();
 	// Check it!
@@ -545,14 +542,14 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    Ok(lookahead)
 	} else {
 	    // Reject
-	    Err(Error::new(lookahead,"expected one thing, found another"))
+	    Err(Error::new(lookahead,ErrorCode::ExpectedToken(kind)))
 	}
     }
 
     /// Match a given token type in the current stream.  If the kind
     /// matches, then the token stream advances.  Otherwise, it
     /// remains at the same position and an error is returned.
-    fn snap(&mut self, kind : TokenType) -> Result<Token<'a>> {
+    fn snap(&mut self, kind : TokenType) -> Result<'a,Token<'a>> {
 	// Peek at the next token
 	let lookahead = self.lexer.peek();
 	// Check it!
@@ -563,7 +560,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	    Ok(lookahead)
 	} else {
 	    // Reject
-	    Err(Error::new(lookahead,"expected one thing, found another"))
+	    Err(Error::new(lookahead,ErrorCode::ExpectedToken(kind)))
 	}
     }
 }

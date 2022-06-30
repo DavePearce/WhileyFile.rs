@@ -4,34 +4,39 @@ pub mod parser;
 // hidden
 mod nodes;
 
-use std::convert::From;
 use std::result;
 
 use crate::ast::AbstractSyntaxTree;
-use crate::lexer::Token;
+use crate::lexer::{Token,TokenType};
 use crate::parser::Parser;
 
 // =================================================================
 // Error
 // =================================================================
 
-/// Identifies possible errors stemming from the parser.
-#[derive(Debug)]
-pub struct Error {
-    pub start: usize,
-    pub end: usize,
-    pub message: String
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum ErrorCode {
+    InvalidBlockIndent,
+    UnexpectedToken,
+    UnexpectedEof,
+    ExpectedLineEnd,
+    ExpectedToken(TokenType)
 }
 
-impl Error {
-    pub fn new<'a>(tok: Token<'a>, message: &str) -> Error {
-	let start = tok.start;
-	let end = tok.end();
-	Error{start,end,message: message.to_string()}
+/// Identifies possible errors stemming from the parser.
+#[derive(Debug)]
+pub struct Error<'a> {
+    pub token: Token<'a>,
+    pub code: ErrorCode
+}
+
+impl<'a> Error<'a> {
+    pub fn new(token: Token<'a>, code: ErrorCode) -> Error<'a> {
+	Error{token,code}
     }
 }
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<'a,T> = result::Result<T, Error<'a>>;
 
 // ===============================================================
 // Whiley File
@@ -45,12 +50,18 @@ pub struct WhileyFile {
 }
 
 impl WhileyFile {
-    pub fn from_str(input: &str) -> Result<WhileyFile> {
-	let mut ast = AbstractSyntaxTree::new();
-	let mut parser = Parser::new(input,&mut ast, source_mapper);
+    pub fn from_str<'a>(input: &'a str) -> Result<'a,WhileyFile> {
+        let mut ast = AbstractSyntaxTree::new();
+	let mut parser = Parser::new(input, &mut ast, source_mapper);
+        let r = parser.parse();
 	// Parse entire file
-	let _ = parser.parse()?;
-	// Done
-	Ok(WhileyFile{ast:Box::new(ast)})
+	match r {
+            Ok(()) => {
+	        Ok(WhileyFile{ast:Box::new(ast)})
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
     }
 }
