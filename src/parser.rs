@@ -14,12 +14,12 @@ type Env = HashMap<String, Name>;
 
 /// Response for turning a stream of tokens into an Abstract Syntax
 /// Tree and/or producing error messages along the way.
-pub struct Parser<'a, F>
+pub struct Parser<'a, 'b, F>
 where F : FnMut(usize,&'a str) {
     /// Provides access to our token stream.
     lexer: Lexer<'a>,
     /// Provides access to the ast
-    ast: &'a mut AbstractSyntaxTree,
+    ast: &'b mut AbstractSyntaxTree,
     /// Provides name cache
     env: Env,
     /// Provides mechanism for source maps
@@ -27,10 +27,10 @@ where F : FnMut(usize,&'a str) {
 
 }
 
-impl<'a,'b,F> Parser<'a,F>
-where 'a :'b, F : FnMut(usize,&'a str) {
+impl<'a,'b,'c, F> Parser<'a,'b,F>
+where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
-    pub fn new(input: &'a str, ast: &'a mut AbstractSyntaxTree, mapper : F) -> Self {
+    pub fn new(input: &'a str, ast: &'b mut AbstractSyntaxTree, mapper : F) -> Self {
 	let env : Env = HashMap::new();
 	Self { lexer: Lexer::new(input), ast, env, mapper }
     }
@@ -44,7 +44,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     /// Parse all declarations
-    pub fn parse(&'b mut self) -> Result<'a, ()> {
+    pub fn parse(&'c mut self) -> Result<'a, ()> {
         let mut decls = Vec::new();
         // Skip whitespace
         while !self.lexer.is_eof() {
@@ -57,7 +57,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     /// Parse an arbitrary declaration
-    pub fn parse_decl(&'b mut self) -> Result<'a,Decl> {
+    pub fn parse_decl(&'c mut self) -> Result<'a,Decl> {
 	let lookahead = self.lexer.peek();
 	// Attempt to parse declaration
 	match lookahead.kind {
@@ -73,7 +73,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 	}
     }
 
-    pub fn parse_decl_function(&'b mut self) -> Result<'a,Decl> {
+    pub fn parse_decl_function(&'c mut self) -> Result<'a,Decl> {
 	// "function"
 	self.snap(TokenType::Function)?;
 	let name = self.parse_identifier()?;
@@ -105,7 +105,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// Properties are permitted to have `requires` clauses, but not
     /// `ensures` clauses.  Their body is also constrained to admin
     /// only non-looping statements.
-    pub fn parse_decl_property(&'b mut self) -> Result<'a,Decl> {
+    pub fn parse_decl_property(&'c mut self) -> Result<'a,Decl> {
         todo![];
     }
 
@@ -120,7 +120,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     /// represents the set of natural numbers (i.e the non-negative
     /// integers). Type declarations may also have modifiers, such as
     /// `public` and `private`.
-    pub fn parse_decl_type(&'b mut self) -> Result<'a,Decl> {
+    pub fn parse_decl_type(&'c mut self) -> Result<'a,Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
 	let name = self.parse_identifier()?;
@@ -385,7 +385,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
-    pub fn parse_type_array(&'b mut self) -> Result<'a,Type> {
+    pub fn parse_type_array(&'c mut self) -> Result<'a,Type> {
     	// Type
     	let mut t = self.parse_type_bracketed()?;
     	// ([])*
@@ -399,7 +399,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
 
     /// Parse a type which may (or may not) be bracketed.  For
     /// example, in `(&int)[]` the type `&int` is bracketed.
-    pub fn parse_type_bracketed(&'b mut self) -> Result<'a,Type> {
+    pub fn parse_type_bracketed(&'c mut self) -> Result<'a,Type> {
     	// Try and match bracket!
     	if self.snap(TokenType::LeftBrace).is_ok() {
     	    // Bingo!
@@ -413,7 +413,7 @@ where 'a :'b, F : FnMut(usize,&'a str) {
     	}
     }
 
-    pub fn parse_type_base(&'b mut self) -> Result<'a,Type> {
+    pub fn parse_type_base(&'c mut self) -> Result<'a,Type> {
 	let lookahead = self.lexer.peek();
 	// Look at what we've got!
 	let typ_e : Type = match lookahead.kind {

@@ -53,9 +53,10 @@ impl WhileyFile {
     pub fn from_str<'a>(input: &'a str) -> Result<'a,WhileyFile> {
         let mut ast = AbstractSyntaxTree::new();
 	let mut parser = Parser::new(input, &mut ast, source_mapper);
+        let r = parser.parse();
 	// Parse entire file
-	match parser.parse() {
-            Ok(_) => {
+	match r {
+            Ok(()) => {
 	        Ok(WhileyFile{ast:Box::new(ast)})
             }
             Err(e) => {
