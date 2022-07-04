@@ -79,7 +79,7 @@ pub struct IntExpr(pub i32);
 pub struct VarExpr(pub Name);
 
 // =============================================================================
-// Expressions
+// Types
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
@@ -102,3 +102,13 @@ pub struct ReferenceType(pub Type);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct VoidType();
+
+// =============================================================================
+// Misc
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct LineComment(pub String);
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct BlockComment(pub String);
