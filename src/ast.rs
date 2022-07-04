@@ -18,6 +18,8 @@ pub type AbstractSyntaxTree = SyntacticHeap<Node>;
 pub enum Node {
     // Base
     Utf8(String),
+    LineComment(LineComment),
+    BlockComment(BlockComment),
     // Declarations
     TypeDecl(TypeDecl),
     FunctionDecl(FunctionDecl),
@@ -276,6 +278,18 @@ impl Name {
         // Done
         Name(index)
     }
+}
+
+// =============================================================================
+// Misc
+// =============================================================================
+
+impl From<LineComment> for Node {
+    fn from(s: LineComment) -> Self { Node::LineComment(s) }
+}
+
+impl From<BlockComment> for Node {
+    fn from(s: BlockComment) -> Self { Node::BlockComment(s) }
 }
 
 // =============================================================================
