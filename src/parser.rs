@@ -66,7 +66,8 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                 self.parse_decl_function()
             }
 	    _ => {
-                todo!("Unknown declaration")
+                // Temporary (for now).
+                Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
 	    }
 	}
     }
@@ -176,7 +177,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	// Parse remaining statements at same indent
         while self.lexer.peek().content == nindent {
             // Attempt to parse statement
-            stmts.push(self.parse_stmt(nindent)?);
+            match self.parse_stmt(nindent)? {
+                Some(stmt) => stmts.push(stmt),
+                None => {}
+            }
         }
         // Done
         Ok(Stmt::new(self.ast,Node::from(BlockStmt(stmts))))
@@ -211,11 +215,14 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     }
 
     /// Parse an arbitrary statement at a given level of indentation.
-    pub fn parse_stmt(&mut self, indent : &'a str) -> Result<'a,Stmt> {
+    /// Observe this is not guaranteed to produce a statement since,
+    /// for example, we might just have an empty line (or a line only
+    /// with a comment).
+    pub fn parse_stmt(&mut self, indent : &'a str) -> Result<'a,Option<Stmt>> {
         // Parse indentation
         let nindent = self.snap(TokenType::Gap)?;
         // Sanity check indentation
-        if !nindent.content.starts_with(indent) || indent.len() == nindent.len() {
+        if nindent.content != indent {
     	    // Parent indent not a strict prefix of current indent.
             return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
         }
@@ -223,7 +230,13 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let lookahead = self.lexer.peek();
     	//
     	match lookahead.kind {
-    	    _ => self.parse_unit_stmt()
+            // Match whitespace
+            TokenType::LineComment | TokenType::BlockComment | TokenType::NewLine => {
+                self.match_line_end();
+                Ok(None)
+            }
+            // Match everything else!
+    	    _ => Ok(Some(self.parse_unit_stmt()?))
     	}
     }
 
