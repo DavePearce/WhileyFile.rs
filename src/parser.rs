@@ -279,9 +279,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_expr(&mut self) -> Result<'a,Expr> {
+        // Parse term
     	let lhs = self.parse_expr_term()?;
-        // Skip whitespace
-        self.skip_gap();
+        // Skip remaining whitespace (on this line)
+        self.skip_linespace();
 	// Check for binary expression
     	let lookahead = self.lexer.peek();
 	//
@@ -299,7 +300,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
         // Skip whitespace
-        self.skip_gap();
+        self.skip_whitespace();
         //
     	let lookahead = self.lexer.peek();
     	//
@@ -533,6 +534,38 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         }
     }
 
+    /// Match various forms of whitespace which can occur on a single
+    /// line, including gaps and comments (but not newlines).
+    fn skip_linespace(&mut self) -> Result<'a,()> {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::EOF => {
+                Ok(())
+            }
+            TokenType::Gap => {
+                self.snap(lookahead.kind)?;
+                self.skip_linespace()
+            }
+            TokenType::LineComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(LineComment(comment)));
+                self.skip_linespace()
+            }
+            TokenType::BlockComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(BlockComment(comment)));
+                self.skip_linespace()
+            }
+            _ => {
+                // Do nothing!
+                Ok(())
+            }
+        }
+    }
+
     /// Match various forms of whitespace, including gaps, newlines
     /// and comments.
     fn skip_whitespace(&mut self) -> Result<'a,()> {
@@ -544,23 +577,23 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             }
             TokenType::Gap => {
                 self.snap(lookahead.kind)?;
-                self.match_line_end()
+                self.skip_whitespace()
             }
             TokenType::NewLine => {
                 self.snap(lookahead.kind)?;
-                Ok(())
+                self.skip_whitespace()
             }
             TokenType::LineComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
                 self.ast.push(Node::from(LineComment(comment)));
-                self.match_line_end()
+                self.skip_whitespace()
             }
             TokenType::BlockComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
                 self.ast.push(Node::from(BlockComment(comment)));
-                self.match_line_end()
+                self.skip_whitespace()
             }
             _ => {
                 // Do nothing!
