@@ -1,6 +1,6 @@
 use std::iter::Peekable;
+use std::cmp;
 use std::str::CharIndices;
-
 // =================================================================
 // Token
 // =================================================================
@@ -12,6 +12,7 @@ pub enum TokenType {
     Assert,
     Bar,
     BarBar,
+    BlockComment,
     Bool,
     Break,
     Case,
@@ -43,6 +44,7 @@ pub enum TokenType {
     LeftBrace,
     LeftCurly,
     LeftSquare,
+    LineComment,
     Method,
     Minus,
     MinusGreater,
@@ -134,6 +136,9 @@ pub struct Lexer<'a> {
 /// An acceptor determines whether or not a character is part of a
 /// given token.
 type Acceptor = fn(char)->bool;
+
+/// An acceptor determines whether or not a pair of characters is matched.
+type Acceptor2 = fn(char,char)->bool;
 
 impl<'a> Lexer<'a> {
     /// Construct a new lexer for a given string slice.
@@ -240,102 +245,38 @@ impl<'a> Lexer<'a> {
         let end = self.scan_whilst(is_identifier_middle);
         let content = &self.input[start..end];
         let kind = match content {
-	    "assert" => {
-                TokenType::Assert
-            }
-	    "bool" => {
-                TokenType::Bool
-            }
-	    "break" => {
-                TokenType::Break
-            }
-	    "case" => {
-                TokenType::Case
-            }
-	    "continue" => {
-                TokenType::Continue
-            }
-	    "default" => {
-                TokenType::Default
-            }
-	    "Do" => {
-                TokenType::Do
-            }
-	    "delete" => {
-                TokenType::Delete
-            }
-	    "else" => {
-                TokenType::Else
-            }
-	    "false" => {
-                TokenType::False
-            }
-	    "for" => {
-                TokenType::For
-            }
-            "function" => {
-                TokenType::Function
-            }
-            "if" => {
-                TokenType::If
-            }
-            "is" => {
-                TokenType::Is
-            }
-	    "i8" => {
-                TokenType::I8
-            }
-	    "i16" => {
-                TokenType::I16
-            }
-	    "i32" => {
-                TokenType::I32
-            }
-	    "i64" => {
-                TokenType::I64
-            }
-            "method" => {
-                TokenType::Method
-            }
-	    "new" => {
-                TokenType::New
-            }
-	    "null" => {
-                TokenType::Null
-            }
-	    "return" => {
-                TokenType::Return
-            }
-	    "skip" => {
-                TokenType::Skip
-            }
-	    "switch" => {
-                TokenType::Switch
-            }
-	    "true" => {
-                TokenType::True
-            }
-	    "type" => {
-                TokenType::Type
-            }
-            "while" => {
-                TokenType::While
-            }
-	    "u8" => {
-                TokenType::U8
-            }
-	    "u16" => {
-                TokenType::U16
-            }
-	    "u32" => {
-                TokenType::U32
-            }
-	    "u64" => {
-                TokenType::U64
-            }
-	    "void" => {
-                TokenType::Void
-            }
+	    "assert" => TokenType::Assert,
+	    "bool" => TokenType::Bool,
+	    "break" => TokenType::Break,
+	    "case" => TokenType::Case,
+	    "continue" => TokenType::Continue,
+	    "default" => TokenType::Default,
+	    "do" => TokenType::Do,
+	    "delete" => TokenType::Delete,
+	    "else" => TokenType::Else,
+	    "false" => TokenType::False,
+	    "for" => TokenType::For,
+            "function" => TokenType::Function,
+            "if" => TokenType::If,
+            "is" => TokenType::Is,
+	    "i8" => TokenType::I8,
+	    "i16" => TokenType::I16,
+	    "i32" => TokenType::I32,
+	    "i64" => TokenType::I64,
+            "method" => TokenType::Method,
+	    "new" => TokenType::New,
+	    "null" => TokenType::Null,
+	    "return" => TokenType::Return,
+	    "skip" => TokenType::Skip,
+	    "switch" => TokenType::Switch,
+	    "true" => TokenType::True,
+	    "type" => TokenType::Type,
+            "while" => TokenType::While,
+	    "u8" => TokenType::U8,
+	    "u16" => TokenType::U16,
+	    "u32" => TokenType::U32,
+	    "u64" => TokenType::U64,
+	    "void" => TokenType::Void,
             _ => {
                 TokenType::Identifier
             }
@@ -443,8 +384,9 @@ impl<'a> Lexer<'a> {
             }
 	    '/' => {
                 if self.matches('/') {
-                    end = start + 2;
-                    TokenType::RightSlashSlash
+                    return self.scan_line_comment(start);
+                } else if self.matches('*') {
+                    return self.scan_block_comment(start);
                 } else {
                     end = start + 1;
                     TokenType::RightSlash
@@ -479,6 +421,31 @@ impl<'a> Lexer<'a> {
         Token{kind,start,content}
     }
 
+    /// Scan a line comment which runs all the way until the end of the
+    /// line.  We can assume the comment start has already been matched.
+    fn scan_line_comment(&mut self, start:usize) -> Token<'a> {
+        let end = self.scan_whilst(|c| c != '\n');
+        let content = &self.input[start..end];
+        let kind = TokenType::LineComment;
+        Token{kind,start,content}
+    }
+
+    /// Scan a block comment which runs all the way until the comment
+    /// terminator is reached.  We can assume the comment start has
+    /// already been matched.
+    fn scan_block_comment(&mut self, start:usize) -> Token<'a> {
+        let end = self.scan_whilst2(|c1,c2| !(c1 == '*' && c2 == '/'));
+        let content = if end != self.input.len() {
+            self.chars.next();
+            &self.input[start..end+1]
+        } else {
+            &self.input[start..end]
+        };
+
+        let kind = TokenType::BlockComment;
+        Token{kind,start,content}
+    }
+
     /// Gobble all characters matched by an acceptor.  For example, we
     /// might want to continue matching digits until we encounter
     /// something which isn't a digit (or is the end of the file).
@@ -490,6 +457,32 @@ impl<'a> Lexer<'a> {
                 // not part of this token.
                 return *o;
             }
+            // Move to next character
+            self.chars.next();
+        }
+        // If we get here, then ran out of characters.  So everything
+        // from the starting point onwards is part of the token.
+        self.input.len()
+    }
+
+    /// Gobble all characters matched by a binary acceptor.
+    fn scan_whilst2(&mut self, pred : Acceptor2) -> usize {
+        // Read first character
+        let mut last = match self.chars.next() {
+            None => {
+                return self.input.len();
+            }
+            Some((o,c)) => c
+        };
+        // Continue reading whilst we're still matching characters
+        while let Some((o,c)) = self.chars.peek() {
+            if !pred(last,*c) {
+                // If we get here, then bumped into something which is
+                // not part of this token.
+                return *o;
+            }
+            // Update last
+            last = *c;
             // Move to next character
             self.chars.next();
         }
@@ -526,7 +519,8 @@ fn is_identifier_start(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_'
 }
 
-/// Determine whether a given character can occur in the middle of an identifier
+/// Determine whether a given character can occur in the middle of an
+/// identifier
 fn is_identifier_middle(c: char) -> bool {
     c.is_digit(10) || is_identifier_start(c)
 }
@@ -804,6 +798,111 @@ fn test_44() {
     assert!(l.peek().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::RightBrace);
     assert!(l.next().kind == TokenType::EOF);
+}
+
+// Comments
+
+#[test]
+fn test_50() {
+    let mut l = Lexer::new("// hello world");
+    assert!(l.peek().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.peek().kind == TokenType::EOF);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_51() {
+    let mut l = Lexer::new("// hello world\n");
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_52() {
+    let mut l = Lexer::new("  // hello world\n");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_53() {
+    let mut l = Lexer::new("  // hello world\n// another comment");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.peek().content == "// another comment");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_54() {
+    let mut l = Lexer::new("  /// hello world");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "/// hello world");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_55() {
+    let mut l = Lexer::new("/*hello world*/");
+    assert!(l.peek().content == "/*hello world*/");
+    assert!(l.next().kind == TokenType::BlockComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_56() {
+    let mut l = Lexer::new("/*/\n");
+    assert!(l.peek().content == "/*/\n");
+    assert!(l.next().kind == TokenType::BlockComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_57() {
+    let mut l = Lexer::new("/*hello\n world*/");
+    assert!(l.peek().content == "/*hello\n world*/");
+    assert!(l.next().kind == TokenType::BlockComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_58() {
+    let mut l = Lexer::new(" /*hello world*/");
+    assert!(l.next().kind == TokenType::Gap);
+    assert!(l.peek().content == "/*hello world*/");
+    assert!(l.next().kind == TokenType::BlockComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
+}
+
+#[test]
+fn test_59() {
+    let mut l = Lexer::new("/*hello world*/\n// Hello");
+    assert!(l.peek().content == "/*hello world*/");
+    assert!(l.next().kind == TokenType::BlockComment);
+    assert!(l.next().kind == TokenType::NewLine);
+    assert!(l.peek().content == "// Hello");
+    assert!(l.next().kind == TokenType::LineComment);
+    assert!(l.next().kind == TokenType::EOF);
+    assert!(l.is_eof());
 }
 
 // Combinations

@@ -24,7 +24,6 @@ where F : FnMut(usize,&'a str) {
     env: Env,
     /// Provides mechanism for source maps
     mapper : F
-
 }
 
 impl<'a,'b,'c, F> Parser<'a,'b,F>
@@ -46,11 +45,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// Parse all declarations
     pub fn parse(&'c mut self) -> Result<'a, ()> {
         let mut decls = Vec::new();
-        // Skip whitespace
+        self.skip_whitespace();
         while !self.lexer.is_eof() {
-            println!("GOING AROUND");
             decls.push(self.parse_decl()?);
-            // Skip whitespace
+            self.skip_whitespace();
         }
         // Done
         Ok(())
@@ -68,7 +66,8 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                 self.parse_decl_function()
             }
 	    _ => {
-                todo!("Unknown declaration")
+                // Temporary (for now).
+                Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
 	    }
 	}
     }
@@ -174,31 +173,70 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     pub fn parse_stmt_block(&mut self, indent : &'a str) -> Result<'a,Stmt> {
     	let mut stmts : Vec<Stmt> = Vec::new();
         // Determine indentation level for this block
-    	let nindent = self.snap(TokenType::Gap)?;
-        // Sanity check indentation
-        if !nindent.content.starts_with(indent) || indent.len() == nindent.len() {
-    	    // Parent indent not a strict prefix of current indent.
-            return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
-        }
-        // Parse initial statement
-    	stmts.push(self.parse_stmt()?);
+    	let nindent = self.determine_block_indent(indent)?;
     	// Parse remaining statements at same indent
-        while self.lexer.peek().content == nindent.content {
-            // Parse indentation
-            self.snap(TokenType::Gap)?;
-            // Parse statement
-    	    stmts.push(self.parse_stmt()?);
+        while self.lexer.peek().content == nindent {
+            // Attempt to parse statement
+            match self.parse_stmt(nindent)? {
+                Some(stmt) => stmts.push(stmt),
+                None => {}
+            }
         }
         // Done
         Ok(Stmt::new(self.ast,Node::from(BlockStmt(stmts))))
     }
 
-    /// Parse an arbitrary statement.
-    pub fn parse_stmt(&mut self) -> Result<'a,Stmt> {
+    /// Determine (and check) the indentation level for a new block.
+    /// As such, the original indentation must be a prefix of the new
+    /// indentation.  Also, we have to manage comments in this
+    /// process.
+    pub fn determine_block_indent(&mut self, indent : &'a str) -> Result<'a,&'a str> {
+        let lookahead = self.lexer.peek();
+        match lookahead.kind {
+            TokenType::BlockComment|TokenType::LineComment => {
+                // Ignore comments!
+                self.match_line_end();
+                self.determine_block_indent(indent)
+            }
+            TokenType::Gap => {
+                let nindent = lookahead.content;
+                // Sanity check indentation
+                if !nindent.starts_with(indent) || indent.len() == nindent.len() {
+    	            // Parent indent not a strict prefix of current indent.
+                    return Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent));
+                }
+                Ok(nindent)
+            }
+            _ => {
+                // Nothing else is the start of a valid statement.
+                Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent))
+            }
+        }
+    }
+
+    /// Parse an arbitrary statement at a given level of indentation.
+    /// Observe this is not guaranteed to produce a statement since,
+    /// for example, we might just have an empty line (or a line only
+    /// with a comment).
+    pub fn parse_stmt(&mut self, indent : &'a str) -> Result<'a,Option<Stmt>> {
+        // Parse indentation
+        let nindent = self.snap(TokenType::Gap)?;
+        // Sanity check indentation
+        if nindent.content != indent {
+    	    // Parent indent not a strict prefix of current indent.
+            return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
+        }
+        // Continue
     	let lookahead = self.lexer.peek();
     	//
     	match lookahead.kind {
-    	    _ => self.parse_unit_stmt()
+            // Match whitespace
+            TokenType::LineComment | TokenType::BlockComment | TokenType::NewLine => {
+                self.match_line_end();
+                Ok(None)
+            }
+            // Match everything else!
+    	    _ => Ok(Some(self.parse_unit_stmt()?))
     	}
     }
 
@@ -208,12 +246,8 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let lookahead = self.lexer.peek();
     	//
     	let stmt = match lookahead.kind {
-    	    TokenType::Assert => {
-    	    	self.parse_stmt_assert()
-    	    }
-    	    TokenType::Skip => {
-    		self.parse_stmt_skip()
-    	    }
+    	    TokenType::Assert => self.parse_stmt_assert(),
+    	    TokenType::Skip => self.parse_stmt_skip(),
     	    _ => {
     		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
     	    }
@@ -245,9 +279,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     // =========================================================================
 
     pub fn parse_expr(&mut self) -> Result<'a,Expr> {
+        // Parse term
     	let lhs = self.parse_expr_term()?;
-        // Skip whitespace
-        self.skip_gap();
+        // Skip remaining whitespace (on this line)
+        self.skip_linespace();
 	// Check for binary expression
     	let lookahead = self.lexer.peek();
 	//
@@ -265,7 +300,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
         // Skip whitespace
-        self.skip_gap();
+        self.skip_whitespace();
         //
     	let lookahead = self.lexer.peek();
     	//
@@ -499,6 +534,74 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         }
     }
 
+    /// Match various forms of whitespace which can occur on a single
+    /// line, including gaps and comments (but not newlines).
+    fn skip_linespace(&mut self) -> Result<'a,()> {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::EOF => {
+                Ok(())
+            }
+            TokenType::Gap => {
+                self.snap(lookahead.kind)?;
+                self.skip_linespace()
+            }
+            TokenType::LineComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(LineComment(comment)));
+                self.skip_linespace()
+            }
+            TokenType::BlockComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(BlockComment(comment)));
+                self.skip_linespace()
+            }
+            _ => {
+                // Do nothing!
+                Ok(())
+            }
+        }
+    }
+
+    /// Match various forms of whitespace, including gaps, newlines
+    /// and comments.
+    fn skip_whitespace(&mut self) -> Result<'a,()> {
+        let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            TokenType::EOF => {
+                Ok(())
+            }
+            TokenType::Gap => {
+                self.snap(lookahead.kind)?;
+                self.skip_whitespace()
+            }
+            TokenType::NewLine => {
+                self.snap(lookahead.kind)?;
+                self.skip_whitespace()
+            }
+            TokenType::LineComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(LineComment(comment)));
+                self.skip_whitespace()
+            }
+            TokenType::BlockComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(BlockComment(comment)));
+                self.skip_whitespace()
+            }
+            _ => {
+                // Do nothing!
+                Ok(())
+            }
+        }
+    }
+
     /// Match the end of a line which is used, for example, to signal
     /// the end of the current statement.
     fn match_line_end(&mut self) -> Result<'a,()> {
@@ -508,9 +611,25 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             TokenType::EOF => {
                 Ok(())
             }
+            TokenType::Gap => {
+                self.snap(lookahead.kind)?;
+                self.match_line_end()
+            }
             TokenType::NewLine => {
                 self.snap(lookahead.kind)?;
                 Ok(())
+            }
+            TokenType::LineComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(LineComment(comment)));
+                self.match_line_end()
+            }
+            TokenType::BlockComment => {
+                let tok = self.snap(lookahead.kind)?;
+                let comment = tok.content.to_string();
+                self.ast.push(Node::from(BlockComment(comment)));
+                self.match_line_end()
             }
             _ => {
 	        // Reject
