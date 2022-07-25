@@ -25,11 +25,10 @@ fn check(test: &str) {
     // Construct initial (empty) snapshot
     let mut snapshot = SnapShot::new();
     // Process each frame, one by one.
-    for i in 0..test_file.size() {
-        let ith = test_file.frame(i);
+    for fr in test_file.iter() {
         // Apply actions
-        for j in 0..ith.actions.len() {
-            snapshot.apply(&ith.actions[j]);
+        for a in &fr.actions {
+            snapshot.apply(a);
         }
         // Compile snapshot
         build(&snapshot);
