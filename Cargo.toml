@@ -14,4 +14,4 @@ repository = "https://github.com/DavePearce/WhileyFile.rs"
 syntactic_heap = "0.3.1"
 
 [dev-dependencies]
-whiley_test_file = "0.5.0"
+whiley_test_file = "0.6"
