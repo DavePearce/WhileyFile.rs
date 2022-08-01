@@ -83,11 +83,12 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         } else {
             vec![]
         };
+        let clauses = self.parse_spec_clauses()?; // TODO
         self.gap_snap(TokenType::Colon)?;
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::from(FunctionDecl::new(name,params,returns,body));
+        let n = Node::from(FunctionDecl::new(name,params,returns,clauses,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }
@@ -160,6 +161,47 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	}
     	// Done
     	Ok(params)
+    }
+
+    // =========================================================================
+    // Specification clauses
+    // =========================================================================
+
+    pub fn parse_spec_clauses(&mut self) -> Result<'a,Vec<Clause>> {
+        let mut clauses = Vec::new();
+        // Skip any preceeding gap
+        self.skip_gap();
+        // Keep going until we meet a colon
+        while !self.lookahead(TokenType::Colon) {
+            clauses.push(self.parse_spec_clause()?);
+        }
+        // Done
+        Ok(clauses)
+    }
+
+    pub fn parse_spec_clause(&mut self)  -> Result<'a,Clause> {
+    	let lookahead = self.lexer.peek();
+        //
+        println!("LOOKAHEAD: {:?}",lookahead);
+        //
+        match lookahead.kind {
+            TokenType::Requires => {
+                self.snap(TokenType::Requires);
+    	        Ok(Clause::Requires(self.parse_expr()?))
+            }
+            TokenType::Ensures => {
+                self.snap(TokenType::Ensures);
+    	        Ok(Clause::Ensures(self.parse_expr()?))
+            }
+            TokenType::Where => {
+                self.snap(TokenType::Where);
+    	        Ok(Clause::Where(self.parse_expr()?))
+            }
+            _ => {
+                // Nothing else is the start of a valid statement.
+                Err(Error::new(lookahead,ErrorCode::InvalidSpecClause))
+            }
+        }
     }
 
     // =========================================================================

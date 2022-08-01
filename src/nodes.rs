@@ -20,12 +20,13 @@ pub struct FunctionDecl {
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
+    clauses: Vec<Clause>,
     body:Stmt
 }
 impl FunctionDecl {
     pub fn new(name: Name, parameters: Vec<Parameter>,
-               returns: Vec<Parameter>, body: Stmt) -> Self {
-        FunctionDecl{name,parameters,returns,body}
+               returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
+        FunctionDecl{name,parameters,returns,clauses,body}
     }
 }
 
@@ -34,13 +35,24 @@ pub struct MethodDecl {
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
+    clauses: Vec<Clause>,
     body:Stmt
 }
 impl MethodDecl {
     pub fn new(name: Name, parameters: Vec<Parameter>,
-               returns: Vec<Parameter>, body: Stmt) -> Self {
-        MethodDecl{name,parameters,returns,body}
+               returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
+        MethodDecl{name,parameters,returns,clauses,body}
     }
+}
+
+/// A clause represents part of the specification given to a function
+/// or method.  For example, a function's precondition is made up from
+/// `requires` clauses, etc.
+#[derive(Clone,Debug,PartialEq)]
+pub enum Clause {
+    Requires(Expr),
+    Ensures(Expr),
+    Where(Expr)
 }
 
 // =============================================================================

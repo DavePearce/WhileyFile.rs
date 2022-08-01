@@ -17,6 +17,7 @@ use crate::parser::Parser;
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ErrorCode {
     InvalidBlockIndent,
+    InvalidSpecClause,
     UnexpectedToken,
     UnexpectedEof,
     ExpectedLineEnd,
