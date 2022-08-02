@@ -24,11 +24,14 @@ pub enum TokenType {
     Dot,
     Delete,
     Else,
+    Ensures,
     EOF,
     Equal,
     EqualEqual,
+    Export,
     False,
     For,
+    Final,
     Function,
     Gap,
     Identifier,
@@ -48,12 +51,16 @@ pub enum TokenType {
     Method,
     Minus,
     MinusGreater,
+    Native,
     New,
     NewLine,
     Null,
     Percent,
     Plus,
+    Private,
+    Public,
     Return,
+    Requires,
     RightAngle,
     RightAngleEquals,
     RightBrace,
@@ -74,7 +81,8 @@ pub enum TokenType {
     U16,
     U32,
     U64,
-    Void
+    Void,
+    Where
 }
 
 /// Represents a single token generated from a string slice.  This
@@ -254,8 +262,11 @@ impl<'a> Lexer<'a> {
 	    "do" => TokenType::Do,
 	    "delete" => TokenType::Delete,
 	    "else" => TokenType::Else,
+            "ensures" => TokenType::Ensures,
+            "export" => TokenType::Export,
 	    "false" => TokenType::False,
 	    "for" => TokenType::For,
+            "final" => TokenType::Final,
             "function" => TokenType::Function,
             "if" => TokenType::If,
             "is" => TokenType::Is,
@@ -266,7 +277,11 @@ impl<'a> Lexer<'a> {
             "method" => TokenType::Method,
 	    "new" => TokenType::New,
 	    "null" => TokenType::Null,
+	    "native" => TokenType::Native,
+	    "private" => TokenType::Private,
+            "public" => TokenType::Public,
 	    "return" => TokenType::Return,
+            "requires" => TokenType::Requires,
 	    "skip" => TokenType::Skip,
 	    "switch" => TokenType::Switch,
 	    "true" => TokenType::True,
@@ -277,6 +292,7 @@ impl<'a> Lexer<'a> {
 	    "u32" => TokenType::U32,
 	    "u64" => TokenType::U64,
 	    "void" => TokenType::Void,
+	    "where" => TokenType::Where,
             _ => {
                 TokenType::Identifier
             }

@@ -6,41 +6,56 @@ use crate::ast::{Expr,Name,Parameter,Stmt,Type};
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct TypeDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     pattern: Type
 }
 impl TypeDecl {
-    pub fn new(name: Name, pattern: Type) -> Self {
-        TypeDecl{name,pattern}
+    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: Type) -> Self {
+        TypeDecl{modifiers,name,pattern}
     }
 }
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct FunctionDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
+    clauses: Vec<Clause>,
     body:Stmt
 }
 impl FunctionDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>,
-               returns: Vec<Parameter>, body: Stmt) -> Self {
-        FunctionDecl{name,parameters,returns,body}
+    pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
+               returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
+        FunctionDecl{modifiers,name,parameters,returns,clauses,body}
     }
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct MethodDecl {
+    pub struct MethodDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
+    clauses: Vec<Clause>,
     body:Stmt
 }
 impl MethodDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>,
-               returns: Vec<Parameter>, body: Stmt) -> Self {
-        MethodDecl{name,parameters,returns,body}
+    pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
+               returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
+        MethodDecl{modifiers,name,parameters,returns,clauses,body}
     }
+}
+
+/// A clause represents part of the specification given to a function
+/// or method.  For example, a function's precondition is made up from
+/// `requires` clauses, etc.
+#[derive(Clone,Debug,PartialEq)]
+pub enum Clause {
+    Requires(Expr),
+    Ensures(Expr),
+    Where(Expr)
 }
 
 // =============================================================================
@@ -102,6 +117,20 @@ pub struct ReferenceType(pub Type);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct VoidType();
+
+
+// =============================================================================
+// Modifiers
+// =============================================================================
+
+#[derive(Copy,Clone,Debug,PartialEq)]
+pub enum Modifier {
+    Export,
+    Final,
+    Native,
+    Public,
+    Private
+}
 
 // =============================================================================
 // Misc

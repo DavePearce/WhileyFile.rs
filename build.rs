@@ -16,7 +16,8 @@ fn main() {
     for e in dir {
         let p = e.as_ref().unwrap().path();
         let n = p.file_stem().unwrap().to_str().unwrap();
-        if p.extension().unwrap() == "test" {
+        // FIXME: only considering one test (for now).
+        if n == "000001" && p.extension().unwrap() == "test" {
             write!(
                 f,
                 "
