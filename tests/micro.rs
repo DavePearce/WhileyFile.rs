@@ -98,17 +98,17 @@ fn test_type_13() {
 
 #[test]
 fn test_type_14() {
-    let ast = check_parse("type ref is &i16");
+    let ast = check_parse("type ref is &int");
     check_name(ast.get(0),"ref");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,16)));
+    assert_eq!(ast.get(1),&Node::from(IntType(true,0)));
     assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
 }
 
 #[test]
 fn test_type_15() {
-    let ast = check_parse("type ref is &(&i16)");
+    let ast = check_parse("type ref is &(&uint)");
     check_name(ast.get(0),"ref");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,16)));
+    assert_eq!(ast.get(1),&Node::from(IntType(false,0)));
     assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
     assert_eq!(ast.get(3),&Node::from(ReferenceType(Type(2))));
 }
@@ -431,7 +431,7 @@ fn test_function_26() {
 
 #[test]
 fn test_function_27() {
-    let ast = check_parse("function f(i32 n)->() ensures n < 0:\n skip");
+    let ast = check_parse("function f(int n)->() ensures n < 0:\n skip");
     assert_eq!(ast.get(4),&Node::from(VarExpr(Name(3))));
     assert_eq!(ast.get(5),&Node::from(IntExpr(0)));
     assert_eq!(ast.get(6),&Node::from(LessThanExpr(Expr(4),Expr(5))));

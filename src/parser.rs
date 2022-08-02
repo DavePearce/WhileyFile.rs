@@ -563,30 +563,12 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                 Type::new(self.ast,Node::from(BoolType()))
 	    }
 	    //
-	    TokenType::I8 => {
-                Type::new(self.ast,Node::from(IntType(true,8)))
-	    }
-	    TokenType::I16 => {
-                Type::new(self.ast,Node::from(IntType(true,16)))
-	    }
-	    TokenType::I32 => {
-                Type::new(self.ast,Node::from(IntType(true,32)))
-	    }
-	    TokenType::I64 => {
-                Type::new(self.ast,Node::from(IntType(true,64)))
+	    TokenType::Int(s) => {
+                Type::new(self.ast,Node::from(IntType(true,s)))
 	    }
 	    //
-	    TokenType::U8 => {
-                Type::new(self.ast,Node::from(IntType(false,8)))
-	    }
-	    TokenType::U16 => {
-                Type::new(self.ast,Node::from(IntType(false,16)))
-	    }
-	    TokenType::U32 => {
-                Type::new(self.ast,Node::from(IntType(false,32)))
-	    }
-	    TokenType::U64 => {
-                Type::new(self.ast,Node::from(IntType(false,64)))
+	    TokenType::Uint(s) => {
+                Type::new(self.ast,Node::from(IntType(false,s)))
 	    }
 	    //
 	    TokenType::Void => {
