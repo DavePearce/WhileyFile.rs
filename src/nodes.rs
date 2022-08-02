@@ -6,17 +6,19 @@ use crate::ast::{Expr,Name,Parameter,Stmt,Type};
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct TypeDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     pattern: Type
 }
 impl TypeDecl {
-    pub fn new(name: Name, pattern: Type) -> Self {
-        TypeDecl{name,pattern}
+    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: Type) -> Self {
+        TypeDecl{modifiers,name,pattern}
     }
 }
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct FunctionDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
@@ -24,14 +26,15 @@ pub struct FunctionDecl {
     body:Stmt
 }
 impl FunctionDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>,
+    pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
                returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
-        FunctionDecl{name,parameters,returns,clauses,body}
+        FunctionDecl{modifiers,name,parameters,returns,clauses,body}
     }
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct MethodDecl {
+    pub struct MethodDecl {
+    modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
     returns: Vec<Parameter>,
@@ -39,9 +42,9 @@ pub struct MethodDecl {
     body:Stmt
 }
 impl MethodDecl {
-    pub fn new(name: Name, parameters: Vec<Parameter>,
+    pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
                returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
-        MethodDecl{name,parameters,returns,clauses,body}
+        MethodDecl{modifiers,name,parameters,returns,clauses,body}
     }
 }
 
@@ -114,6 +117,20 @@ pub struct ReferenceType(pub Type);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct VoidType();
+
+
+// =============================================================================
+// Modifiers
+// =============================================================================
+
+#[derive(Copy,Clone,Debug,PartialEq)]
+pub enum Modifier {
+    Export,
+    Final,
+    Native,
+    Public,
+    Private
+}
 
 // =============================================================================
 // Misc

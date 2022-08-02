@@ -56,14 +56,20 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     /// Parse an arbitrary declaration
     pub fn parse_decl(&'c mut self) -> Result<'a,Decl> {
+        // Parse any modifiers
+        let modifiers = self.parse_decl_modifiers()?;
+        // Now see what we have.
 	let lookahead = self.lexer.peek();
 	// Attempt to parse declaration
 	match lookahead.kind {
 	    TokenType::Type => {
-		self.parse_decl_type()
+		self.parse_decl_type(modifiers)
 	    }
             TokenType::Function => {
-                self.parse_decl_function()
+                self.parse_decl_function(modifiers)
+            }
+            TokenType::Method => {
+                self.parse_decl_method(modifiers)
             }
 	    _ => {
                 // Temporary (for now).
@@ -72,23 +78,28 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	}
     }
 
-    pub fn parse_decl_function(&'c mut self) -> Result<'a,Decl> {
+    pub fn parse_decl_function(&'c mut self, modifiers: Vec<Modifier>) -> Result<'a,Decl> {
 	// "function"
 	self.snap(TokenType::Function)?;
-	let name = self.parse_identifier()?;
-	let params = self.parse_decl_parameters()?;
-        let returns = if self.lookahead(TokenType::MinusGreater) {
-	    self.gap_snap(TokenType::MinusGreater)?;
-            self.parse_decl_parameters()?
-        } else {
-            vec![]
-        };
-        let clauses = self.parse_spec_clauses()?; // TODO
+	let (name,params,returns,clauses) = self.parse_signature()?;
         self.gap_snap(TokenType::Colon)?;
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::from(FunctionDecl::new(name,params,returns,clauses,body));
+        let n = Node::from(FunctionDecl::new(modifiers,name,params,returns,clauses,body));
+        // Done
+        Ok(Decl::new(self.ast,n))
+    }
+
+    pub fn parse_decl_method(&'c mut self, modifiers: Vec<Modifier>) -> Result<'a,Decl> {
+	// "function"
+	self.snap(TokenType::Method)?;
+        let (name,params,returns,clauses) = self.parse_signature()?;
+        self.gap_snap(TokenType::Colon)?;
+        self.match_line_end()?;
+	let body = self.parse_stmt_block(&"")?;
+	// Construct node
+        let n = Node::from(MethodDecl::new(modifiers,name,params,returns,clauses,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }
@@ -109,6 +120,23 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         todo![];
     }
 
+    /// Parse the signature of a function, method or property.  Since
+    /// this is common to all three, we abstract it here.
+    pub fn parse_signature(&'c mut self) ->
+        Result<'a,(Name,Vec<Parameter>,Vec<Parameter>,Vec<Clause>)> {
+	    let name = self.parse_identifier()?;
+	    let params = self.parse_decl_parameters()?;
+            let returns = if self.lookahead(TokenType::MinusGreater) {
+	        self.gap_snap(TokenType::MinusGreater)?;
+                self.parse_decl_parameters()?
+            } else {
+                vec![]
+            };
+            let clauses = self.parse_spec_clauses()?;
+            // Done
+            Ok((name,params,returns,clauses))
+        }
+
     /// Parse a type declaration in a Whiley source file.  A simple
     /// example to illustrate is:
     ///
@@ -120,7 +148,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// represents the set of natural numbers (i.e the non-negative
     /// integers). Type declarations may also have modifiers, such as
     /// `public` and `private`.
-    pub fn parse_decl_type(&'c mut self) -> Result<'a,Decl> {
+    pub fn parse_decl_type(&'c mut self,  modifiers: Vec<Modifier>) -> Result<'a,Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
 	let name = self.parse_identifier()?;
@@ -135,7 +163,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
-	Ok(Decl::new(self.ast,Node::from(TypeDecl::new(name,typ_e))))
+	Ok(Decl::new(self.ast,Node::from(TypeDecl::new(modifiers,name,typ_e))))
     }
 
     /// Parse a list of parameter declarations
@@ -163,14 +191,50 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	Ok(params)
     }
 
+    /// Parse modifiers for a given declaration, such as `public`,
+    /// `private` or `export`.
+    pub fn parse_decl_modifiers(&mut self) -> Result<'a,Vec<Modifier>> {
+        let mut mods = vec![];
+        //
+        loop {
+            // Skip any preceeding gap.
+            self.skip_gap();
+	    let lookahead = self.lexer.peek();
+	    // Attempt to parse declaration
+	    match lookahead.kind {
+                TokenType::Export => {
+                    self.snap(TokenType::Export);
+                    mods.push(Modifier::Export);
+                }
+                TokenType::Final => {
+                    self.snap(TokenType::Final);
+                    mods.push(Modifier::Final);
+                }
+                TokenType::Native => {
+                    self.snap(TokenType::Native);
+                    mods.push(Modifier::Native);
+                }
+                TokenType::Private => {
+                    self.snap(TokenType::Private);
+                    mods.push(Modifier::Private);
+                }
+                TokenType::Public => {
+                    self.snap(TokenType::Public);
+                    mods.push(Modifier::Public);
+                }
+                _ => {
+                    return Ok(mods);
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // Specification clauses
     // =========================================================================
 
     pub fn parse_spec_clauses(&mut self) -> Result<'a,Vec<Clause>> {
         let mut clauses = Vec::new();
-        // Skip any preceeding gap
-        self.skip_gap();
         // Keep going until we meet a colon
         while !self.lookahead(TokenType::Colon) {
             clauses.push(self.parse_spec_clause()?);
@@ -180,9 +244,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     }
 
     pub fn parse_spec_clause(&mut self)  -> Result<'a,Clause> {
+        // Skip any preceeding gap
+        self.skip_whitespace()?;
+        // Decide what type of clause (if any) we have
     	let lookahead = self.lexer.peek();
-        //
-        println!("LOOKAHEAD: {:?}",lookahead);
         //
         match lookahead.kind {
             TokenType::Requires => {
@@ -192,10 +257,6 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             TokenType::Ensures => {
                 self.snap(TokenType::Ensures);
     	        Ok(Clause::Ensures(self.parse_expr()?))
-            }
-            TokenType::Where => {
-                self.snap(TokenType::Where);
-    	        Ok(Clause::Where(self.parse_expr()?))
             }
             _ => {
                 // Nothing else is the start of a valid statement.
