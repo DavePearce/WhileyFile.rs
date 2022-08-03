@@ -252,6 +252,16 @@ fn test_function_0C() {
 }
 
 #[test]
+fn test_function_0D() {
+    let ast = check_parse("export function f()->(int x):\n skip");
+}
+
+#[test]
+fn test_function_0E() {
+    let ast = check_parse("export function f()->int:\n skip");
+}
+
+#[test]
 fn test_function_10() {
     let ast = check_parse("function f()->():\n skip");
     check_name(ast.get(0),"f");
