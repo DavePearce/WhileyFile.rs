@@ -128,7 +128,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	    let params = self.parse_decl_parameters()?;
             let returns = if self.lookahead(TokenType::MinusGreater) {
 	        self.gap_snap(TokenType::MinusGreater)?;
-                self.parse_decl_parameters()?
+                self.parse_decl_returns()?
             } else {
                 vec![]
             };
@@ -189,6 +189,28 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	}
     	// Done
     	Ok(params)
+    }
+
+    /// Parse a list of return declarations.  These are essentially
+    /// identical to parameters except, at the moment, they can be
+    /// "anonymous".
+    pub fn parse_decl_returns(&mut self) -> Result<'a,Vec<Parameter>> {
+        // Skip any preceeding gap
+        self.skip_gap();
+        //
+        if self.matches(TokenType::LeftBrace).is_ok() {
+            self.parse_decl_parameters()
+        } else {
+    	    let mut params : Vec<Parameter> = vec![];
+            // Type
+    	    let f_type = self.parse_type()?;
+    	    // Anonymous identifier
+    	    let f_name = Name::new(self.ast,&"$");
+    	    //
+    	    params.push(Parameter{declared:f_type,name:f_name});
+            // Done
+            Ok(params)
+        }
     }
 
     /// Parse modifiers for a given declaration, such as `public`,
