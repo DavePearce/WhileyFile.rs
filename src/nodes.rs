@@ -118,6 +118,8 @@ pub struct ReferenceType(pub Type);
 #[derive(Clone,Debug,PartialEq)]
 pub struct VoidType();
 
+#[derive(Clone,Debug,PartialEq)]
+pub struct NominalType(pub Name);
 
 // =============================================================================
 // Modifiers

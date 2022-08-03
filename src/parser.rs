@@ -554,26 +554,18 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     pub fn parse_type_base(&'c mut self) -> Result<'a,Type> {
 	let lookahead = self.lexer.peek();
 	// Look at what we've got!
-	let typ_e : Type = match lookahead.kind {
-	    TokenType::Null => {
-		Type::new(self.ast,Node::from(NullType()))
-	    }
-	    //
-	    TokenType::Bool => {
-                Type::new(self.ast,Node::from(BoolType()))
-	    }
-	    //
-	    TokenType::Int(s) => {
-                Type::new(self.ast,Node::from(IntType(true,s)))
-	    }
-	    //
-	    TokenType::Uint(s) => {
-                Type::new(self.ast,Node::from(IntType(false,s)))
-	    }
-	    //
-	    TokenType::Void => {
-                Type::new(self.ast,Node::from(VoidType()))
-	    }
+	let typ_e = match lookahead.kind {
+	    TokenType::Null => Node::from(NullType()),
+	    TokenType::Bool => Node::from(BoolType()),
+	    TokenType::Int(s) => Node::from(IntType(true,s)),
+	    TokenType::Uint(s) => Node::from(IntType(false,s)),
+	    TokenType::Void => Node::from(VoidType()),
+            // Nominals
+            TokenType::Identifier => {
+                // TODO: manage qualified names here.
+                let n = Name::new(self.ast,&lookahead.content);
+                Node::from(NominalType(n))
+            }
 	    _ => {
     		return Err(Error::new(lookahead, ErrorCode::UnexpectedToken));
 	    }
@@ -581,7 +573,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	// Move over it
 	self.lexer.next();
 	//
-	Ok(typ_e)
+	Ok(Type::new(self.ast,Node::from(typ_e)))
     }
 
     // =========================================================================

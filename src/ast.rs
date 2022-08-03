@@ -39,6 +39,7 @@ pub enum Node {
     ArrayType(ArrayType),
     BoolType(BoolType),
     IntType(IntType),
+    NominalType(NominalType),
     NullType(NullType),
     RecordType(RecordType),
     ReferenceType(ReferenceType),
@@ -221,6 +222,7 @@ impl Type {
         match t {
             Node::BoolType(_) => true,
             Node::IntType(_) => true,
+            Node::NominalType(_) => true,
             Node::NullType(_) => true,
             Node::VoidType(_) => true,
             Node::ArrayType(_) => true,
@@ -249,6 +251,10 @@ impl From<IntType> for Node {
 
 impl From<NullType> for Node {
     fn from(s: NullType) -> Self { Node::NullType(s) }
+}
+
+impl From<NominalType> for Node {
+    fn from(s: NominalType) -> Self { Node::NominalType(s) }
 }
 
 impl From<RecordType> for Node {
