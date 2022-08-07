@@ -30,9 +30,7 @@ pub enum Node {
     SkipStmt(SkipStmt),
     // Expressions
     BoolExpr(BoolExpr),
-    EqualsExpr(EqualsExpr),
-    NotEqualsExpr(NotEqualsExpr),
-    LessThanExpr(LessThanExpr),
+    BinaryExpr(BinaryExpr),
     IntExpr(IntExpr),
     VarExpr(VarExpr),
     // Types
@@ -162,9 +160,7 @@ impl Expr {
     pub fn is(t: &Node) -> bool {
         match t {
 	    Node::BoolExpr(_) => true,
-	    Node::EqualsExpr(_) => true,
-	    Node::LessThanExpr(_) => true,
-	    Node::NotEqualsExpr(_) => true,
+	    Node::BinaryExpr(_) => true,
 	    Node::IntExpr(_) => true,
 	    Node::VarExpr(_) => true,
             _ => false
@@ -180,16 +176,8 @@ impl From<BoolExpr> for Node {
     fn from(s: BoolExpr) -> Self { Node::BoolExpr(s) }
 }
 
-impl From<EqualsExpr> for Node {
-    fn from(s: EqualsExpr) -> Self { Node::EqualsExpr(s) }
-}
-
-impl From<NotEqualsExpr> for Node {
-    fn from(s: NotEqualsExpr) -> Self { Node::NotEqualsExpr(s) }
-}
-
-impl From<LessThanExpr> for Node {
-    fn from(s: LessThanExpr) -> Self { Node::LessThanExpr(s) }
+impl From<BinaryExpr> for Node {
+    fn from(s: BinaryExpr) -> Self { Node::BinaryExpr(s) }
 }
 
 impl From<IntExpr> for Node {

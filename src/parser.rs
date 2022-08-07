@@ -410,17 +410,16 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         self.skip_linespace();
 	// Check for binary expression
     	let lookahead = self.lexer.peek();
-	//
-	match lookahead.kind {
-	    TokenType::LeftAngle => {
-		self.lexer.next();
-		let rhs = self.parse_expr_term()?;
-		Ok(Expr::new(self.ast,Node::from(LessThanExpr(lhs,rhs))))
-	    }
-	    _ => {
-		Ok(lhs)
-	    }
-	}
+	// Attempt to parse binary operator
+	let bop = match BinOp::from(&lookahead) {
+            Some(bop) => bop,
+	    None => { return Ok(lhs); }
+	};
+        // Yes, this is a binary expression!
+	self.lexer.next();
+	let rhs = self.parse_expr_term()?;
+	let node = Node::from(BinaryExpr(bop,lhs,rhs));
+	Ok(Expr::new(self.ast,node))
     }
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {

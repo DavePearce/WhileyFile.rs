@@ -1,4 +1,5 @@
 use crate::ast::{Expr,Name,Parameter,Stmt,Type};
+use crate::lexer::{Token,TokenType};
 
 // =============================================================================
 // Declarations
@@ -79,19 +80,52 @@ pub struct SkipStmt();
 pub struct BoolExpr(pub bool);
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct EqualsExpr(pub Expr, pub Expr);
-
-#[derive(Clone,Debug,PartialEq)]
-pub struct NotEqualsExpr(pub Expr, pub Expr);
-
-#[derive(Clone,Debug,PartialEq)]
-pub struct LessThanExpr(pub Expr, pub Expr);
+pub struct BinaryExpr(pub BinOp, pub Expr, pub Expr);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct IntExpr(pub i32);
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct VarExpr(pub Name);
+
+// =============================================================================
+// Binary Operators
+// =============================================================================
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum BinOp {
+    Equals,
+    NotEquals,
+    LessThan,
+    GreaterThan,
+    LessThanOrEquals,
+    GreaterThanOrEquals,
+    LogicalAnd,
+    LogicalOr,
+    LogicalXor,
+}
+
+impl BinOp {
+    /// Attempt to construct a binary operator from an arbitrary
+    /// token.  Obviously, this is not guaranteed to succeed!
+    pub fn from(token: &Token) -> Option<Self> {
+	let bop = match token.kind {
+            // Equality
+            TokenType::EqualEqual => BinOp::Equals,
+            TokenType::ShreakEquals => BinOp::NotEquals,
+            // Arithmetic
+	    TokenType::LeftAngle => BinOp::LessThan,
+            TokenType::LeftAngleEquals => BinOp::LessThanOrEquals,
+            TokenType::RightAngle => BinOp::GreaterThan,
+            TokenType::RightAngleEquals => BinOp::GreaterThanOrEquals,
+            // Logical
+            TokenType::AmpersandAmpersand => BinOp::LogicalAnd,
+            TokenType::BarBar => BinOp::LogicalOr,
+            // No match
+	    _ => { return None; }
+	};
+        Some(bop)
+    }
+}
 
 // =============================================================================
 // Types
