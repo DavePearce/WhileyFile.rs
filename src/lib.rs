@@ -14,14 +14,15 @@ use crate::parser::Parser;
 // Error
 // =================================================================
 
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum ErrorCode {
     InvalidBlockIndent,
     InvalidSpecClause,
     UnexpectedToken,
     UnexpectedEof,
     ExpectedLineEnd,
-    ExpectedToken(TokenType)
+    ExpectedToken(TokenType),
+    ExpectedTokenIn(Vec<TokenType>)
 }
 
 /// Identifies possible errors stemming from the parser.

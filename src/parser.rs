@@ -8,6 +8,29 @@ use crate::ast::*;
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
 
+/// Defines the set of tokens which are considered to identify logical
+/// connectives (e.g. `&&`, `||`, etc).
+pub const LOGICAL_CONNECTIVES : &'static [TokenType] = &[
+    TokenType::AmpersandAmpersand,
+    TokenType::BarBar
+];
+
+/// Defines the set of tokens which are considered to identify
+/// arithmetic comparators (e.g. `<`, `<=`, `==`, etc).
+pub const ARITHMETIC_COMPARATORS : &'static [TokenType] = &[
+    TokenType::EqualEqual,
+    TokenType::ShreakEquals,
+    TokenType::LeftAngle,
+    TokenType::LeftAngleEquals,
+    TokenType::RightAngle,
+    TokenType::RightAngleEquals
+];
+
+pub const BINARY_CONNECTIVES : &'static [ &'static [TokenType] ] = &[
+    &ARITHMETIC_COMPARATORS,
+    &LOGICAL_CONNECTIVES,
+];
+
 // =================================================================
 // Parser
 // =================================================================
@@ -403,23 +426,39 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     // Expressions
     // =========================================================================
 
+    /// Parse an arbitrary expression.
     pub fn parse_expr(&mut self) -> Result<'a,Expr> {
-        // Parse term
-    	let lhs = self.parse_expr_term()?;
-        // Skip remaining whitespace (on this line)
-        self.skip_linespace();
-	// Check for binary expression
-    	let lookahead = self.lexer.peek();
-	// Attempt to parse binary operator
-	let bop = match BinOp::from(&lookahead) {
-            Some(bop) => bop,
-	    None => { return Ok(lhs); }
-	};
-        // Yes, this is a binary expression!
-	self.lexer.next();
-	let rhs = self.parse_expr_term()?;
-	let node = Node::from(BinaryExpr(bop,lhs,rhs));
-	Ok(Expr::new(self.ast,node))
+        self.parse_expr_binary(2)
+    }
+
+    /// Parse a binary expression at a given _level_.  Higher levels
+    /// indicate expressions which bind _less tightly_.  Furthermore,
+    /// level `0` corresponds simply to parsing a unary expression.
+    pub fn parse_expr_binary(&mut self, level: usize) -> Result<'a,Expr> {
+        if level == 0 {
+            self.parse_expr_term()
+        } else {
+            let tokens = BINARY_CONNECTIVES[level-1];
+            // Parse level below
+    	    let lhs = self.parse_expr_binary(level-1)?;
+            // Skip remaining whitespace (on this line)
+            self.skip_linespace();
+	    // Check whether logical connective follows
+    	    let lookahead = self.snap_any(tokens);
+            //
+            match lookahead {
+                Ok(t) => {
+                    // FIXME: turn this into a loop!
+	            let rhs = self.parse_expr_binary(level-1)?;
+                    let bop = BinOp::from(&t).unwrap();
+	            let node = Node::from(BinaryExpr(bop,lhs,rhs));
+	            Ok(Expr::new(self.ast,node))
+                }
+                Err(_) => {
+                    Ok(lhs)
+                }
+            }
+        }
     }
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
@@ -779,5 +818,20 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	    // Reject
 	    Err(Error::new(lookahead,ErrorCode::ExpectedToken(kind)))
 	}
+    }
+
+    /// Match a given token type in the current stream for a set of
+    /// candidates.  If one of the candidates matches, then the token
+    /// stream advances.  Otherwise, it remains at the same position
+    /// and an error is returned.
+    fn snap_any(&mut self, kinds: &[TokenType]) -> Result<'a,Token<'a>> {
+        for k in kinds {
+            match self.snap(*k) {
+                Ok(tok) => { return Ok(tok); }
+                _ => { }
+            }
+        }
+        // Reject
+	Err(Error::new(self.lexer.peek(),ErrorCode::ExpectedTokenIn(kinds.to_vec())))
     }
 }
