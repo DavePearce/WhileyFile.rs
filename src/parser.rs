@@ -468,6 +468,9 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let lookahead = self.lexer.peek();
     	//
     	let expr = match lookahead.kind {
+    	    TokenType::Bar => {
+    		self.parse_expr_arraylength()?
+    	    }
     	    TokenType::False => {
     		self.lexer.next();
     		Expr::new(self.ast,Node::from(BoolExpr(false)))
@@ -481,7 +484,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 		Expr::new(self.ast,Node::from(IntExpr(lookahead.as_int())))
     	    }
     	    TokenType::LeftBrace => {
-    	    	return self.parse_expr_bracketed()
+    	    	self.parse_expr_bracketed()?
     	    }
     	    TokenType::True => {
     		self.lexer.next();
@@ -493,6 +496,17 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	};
     	//
     	Ok(expr)
+    }
+
+    pub fn parse_expr_arraylength(&mut self) -> Result<'a,Expr> {
+        // "|"
+    	self.snap(TokenType::Bar)?;
+    	// Expr
+    	let expr = self.parse_expr()?;
+    	// "|"
+    	self.snap(TokenType::Bar)?;
+    	//
+    	Ok(Expr::new(self.ast,Node::from(ArrayLengthExpr(expr))))
     }
 
     pub fn parse_expr_bracketed(&mut self) -> Result<'a,Expr> {
