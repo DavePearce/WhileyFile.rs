@@ -21,6 +21,7 @@ impl Expr {
     /// Determine whether a given term is a declaration or not.
     pub fn is(t: &Node) -> bool {
         match t {
+	    Node::ArrayAccessExpr(_) => true,
 	    Node::ArrayLengthExpr(_) => true,
 	    Node::BoolExpr(_) => true,
 	    Node::BinaryExpr(_) => true,
@@ -114,6 +115,13 @@ impl BinOp {
 // =============================================================================
 // Arrays
 // =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct ArrayAccessExpr(pub Expr, pub Expr);
+
+impl From<ArrayAccessExpr> for Node {
+    fn from(s: ArrayAccessExpr) -> Self { Node::ArrayAccessExpr(s) }
+}
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct ArrayLengthExpr(pub Expr);

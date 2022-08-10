@@ -23,6 +23,7 @@ impl Stmt {
         match t {
 	    Node::AssertStmt(_) => true,
 	    Node::BlockStmt(_) => true,
+	    Node::ReturnStmt(_) => true,
 	    Node::SkipStmt(_) => true,
             _ => false
         }
@@ -53,6 +54,17 @@ pub struct BlockStmt(pub Vec<Stmt>);
 
 impl From<BlockStmt> for Node {
     fn from(s: BlockStmt) -> Self { Node::BlockStmt(s) }
+}
+
+// =============================================================================
+// Return
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct ReturnStmt(pub Option<Expr>);
+
+impl From<ReturnStmt> for Node {
+    fn from(s: ReturnStmt) -> Self { Node::ReturnStmt(s) }
 }
 
 // =============================================================================

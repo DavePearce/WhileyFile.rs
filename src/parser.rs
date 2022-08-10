@@ -395,6 +395,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	//
     	let stmt = match lookahead.kind {
     	    TokenType::Assert => self.parse_stmt_assert(),
+    	    TokenType::Return => self.parse_stmt_return(),
     	    TokenType::Skip => self.parse_stmt_skip(),
     	    _ => {
     		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
@@ -413,6 +414,23 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let expr = self.parse_expr()?;
     	// Done
     	Ok(Stmt::new(self.ast,Node::from(AssertStmt(expr))))
+    }
+
+    pub fn parse_stmt_return(&mut self) -> Result<'a,Stmt> {
+    	// "return"
+    	self.snap(TokenType::Return)?;
+    	//
+        self.skip_linespace();
+        // See whether an expression follows
+        let stmt = match self.snap(TokenType::NewLine) {
+            Ok(_) => Node::from(ReturnStmt(Option::None)),
+            Err(_) => {
+                let expr = self.parse_expr()?;
+                Node::from(ReturnStmt(Option::Some(expr)))
+            }
+        };
+        // Done
+    	Ok(Stmt::new(self.ast,stmt))
     }
 
     pub fn parse_stmt_skip(&mut self) -> Result<'a,Stmt> {
@@ -436,7 +454,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// level `0` corresponds simply to parsing a unary expression.
     pub fn parse_expr_binary(&mut self, level: usize) -> Result<'a,Expr> {
         if level == 0 {
-            self.parse_expr_term()
+            self.parse_expr_postfix()
         } else {
             let tokens = BINARY_CONNECTIVES[level-1];
             // Parse level below
@@ -459,6 +477,29 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                 }
             }
         }
+    }
+
+    pub fn parse_expr_postfix(&mut self) -> Result<'a,Expr> {
+        let mut expr = self.parse_expr_term()?;
+        // Check for postfix unary operator.
+        //
+    	let lookahead = self.lexer.peek();
+    	// FIXME: managed nested operators
+        expr = match lookahead.kind {
+            TokenType::LeftSquare => {
+                self.parse_expr_arrayaccess(expr)?
+            }
+            _ => expr
+        };
+        // Done
+        Ok(expr)
+    }
+
+    pub fn parse_expr_arrayaccess(&mut self, src: Expr) -> Result<'a,Expr> {
+        self.snap(TokenType::LeftSquare)?;
+        let index = self.parse_expr()?;
+        self.snap(TokenType::RightSquare)?;
+        Ok(Expr::new(self.ast,Node::from(ArrayAccessExpr(src,index))))
     }
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {

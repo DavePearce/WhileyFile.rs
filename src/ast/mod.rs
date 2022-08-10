@@ -37,12 +37,14 @@ pub enum Node {
     // Statements
     AssertStmt(AssertStmt),
     BlockStmt(BlockStmt),
+    ReturnStmt(ReturnStmt),
     SkipStmt(SkipStmt),
     // Expressions
     BoolExpr(BoolExpr),
     BinaryExpr(BinaryExpr),
     IntExpr(IntExpr),
     VarExpr(VarExpr),
+    ArrayAccessExpr(ArrayAccessExpr),
     ArrayLengthExpr(ArrayLengthExpr),
     // Types
     ArrayType(ArrayType),
