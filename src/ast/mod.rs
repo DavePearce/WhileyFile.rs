@@ -1,6 +1,6 @@
 // Hidden
 mod decl;
-mod expr;
+pub mod expr;
 mod stmt;
 mod types;
 
@@ -10,7 +10,7 @@ use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::*;
-pub use self::expr::*;
+pub use self::expr::{BinOp,Expr};
 pub use self::stmt::*;
 pub use self::types::*;
 
@@ -40,12 +40,12 @@ pub enum Node {
     ReturnStmt(ReturnStmt),
     SkipStmt(SkipStmt),
     // Expressions
-    BoolExpr(BoolExpr),
-    BinaryExpr(BinaryExpr),
-    IntExpr(IntExpr),
-    VarExpr(VarExpr),
-    ArrayAccessExpr(ArrayAccessExpr),
-    ArrayLengthExpr(ArrayLengthExpr),
+    BoolExpr(expr::Bool),
+    BinaryExpr(expr::BinaryExpr),
+    IntExpr(expr::IntExpr),
+    VarExpr(expr::VarExpr),
+    ArrayAccessExpr(expr::ArrayAccessExpr),
+    ArrayLengthExpr(expr::ArrayLengthExpr),
     // Types
     ArrayType(ArrayType),
     BoolType(BoolType),

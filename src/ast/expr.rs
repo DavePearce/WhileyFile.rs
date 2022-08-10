@@ -41,10 +41,10 @@ impl Into<usize> for Expr {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BoolExpr(pub bool);
+pub struct Bool(pub bool);
 
-impl From<BoolExpr> for Node {
-    fn from(s: BoolExpr) -> Self { Node::BoolExpr(s) }
+impl From<Bool> for Node {
+    fn from(s: Bool) -> Self { Node::BoolExpr(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]
