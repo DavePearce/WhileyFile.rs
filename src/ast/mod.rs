@@ -39,13 +39,14 @@ pub enum Node {
     BlockStmt(BlockStmt),
     ReturnStmt(ReturnStmt),
     SkipStmt(SkipStmt),
+    VarDeclStmt(VarDeclStmt),
     // Expressions
+    ArrayAccessExpr(expr::ArrayAccessExpr),
+    ArrayLengthExpr(expr::ArrayLengthExpr),
     BoolExpr(expr::Bool),
     BinaryExpr(expr::BinaryExpr),
     IntExpr(expr::IntExpr),
     VarExpr(expr::VarExpr),
-    ArrayAccessExpr(expr::ArrayAccessExpr),
-    ArrayLengthExpr(expr::ArrayLengthExpr),
     // Types
     ArrayType(ArrayType),
     BoolType(BoolType),

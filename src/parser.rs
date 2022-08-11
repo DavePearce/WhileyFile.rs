@@ -397,9 +397,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	    TokenType::Assert => self.parse_stmt_assert(),
     	    TokenType::Return => self.parse_stmt_return(),
     	    TokenType::Skip => self.parse_stmt_skip(),
-    	    _ => {
-    		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
-    	    }
+    	    _ => self.parse_vardecl_stmt()
     	};
         // Match line end
         self.match_line_end()?;
@@ -438,6 +436,24 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	self.snap(TokenType::Skip)?;
     	// Done
     	Ok(Stmt::new(self.ast,Node::from(SkipStmt())))
+    }
+
+    pub fn parse_vardecl_stmt(&mut self) -> Result<'a,Stmt> {
+    	// type
+        let vtype = self.parse_type()?;
+        // name
+        let name = self.parse_identifier()?;
+        // Skip over any linespace
+        self.skip_linespace();
+    	// Initialiser (Optional)
+    	let expr = match self.snap(TokenType::Equal) {
+            Ok(_) => {
+                Option::Some(self.parse_expr()?)
+            },
+            Err(_) => Option::None
+        };
+    	// Done
+    	Ok(Stmt::new(self.ast,Node::from(VarDeclStmt(vtype,name,expr))))
     }
 
     // =========================================================================

@@ -25,6 +25,7 @@ impl Stmt {
 	    Node::BlockStmt(_) => true,
 	    Node::ReturnStmt(_) => true,
 	    Node::SkipStmt(_) => true,
+	    Node::VarDeclStmt(_) => true,
             _ => false
         }
     }
@@ -76,4 +77,15 @@ pub struct SkipStmt();
 
 impl From<SkipStmt> for Node {
     fn from(s: SkipStmt) -> Self { Node::SkipStmt(s) }
+}
+
+// =============================================================================
+// Variable Declarations
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct VarDeclStmt(pub Type, pub Name, pub Option<Expr>);
+
+impl From<VarDeclStmt> for Node {
+    fn from(s: VarDeclStmt) -> Self { Node::VarDeclStmt(s) }
 }
