@@ -42,6 +42,7 @@ pub enum Node {
     VarDeclStmt(VarDeclStmt),
     // Expressions
     ArrayAccessExpr(expr::ArrayAccessExpr),
+    ArrayInitialiserExpr(expr::ArrayInitialiser),
     ArrayLengthExpr(expr::ArrayLengthExpr),
     BoolExpr(expr::Bool),
     BinaryExpr(expr::BinaryExpr),

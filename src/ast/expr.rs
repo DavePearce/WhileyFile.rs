@@ -22,6 +22,7 @@ impl Expr {
     pub fn is(t: &Node) -> bool {
         match t {
 	    Node::ArrayAccessExpr(_) => true,
+	    Node::ArrayInitialiserExpr(_) => true,
 	    Node::ArrayLengthExpr(_) => true,
 	    Node::BoolExpr(_) => true,
 	    Node::BinaryExpr(_) => true,
@@ -121,6 +122,13 @@ pub struct ArrayAccessExpr(pub Expr, pub Expr);
 
 impl From<ArrayAccessExpr> for Node {
     fn from(s: ArrayAccessExpr) -> Self { Node::ArrayAccessExpr(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct ArrayInitialiser(pub Vec<Expr>);
+
+impl From<ArrayInitialiser> for Node {
+    fn from(s: ArrayInitialiser) -> Self { Node::ArrayInitialiserExpr(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]

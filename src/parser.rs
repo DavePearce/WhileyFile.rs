@@ -543,6 +543,9 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	    TokenType::LeftBrace => {
     	    	self.parse_expr_bracketed()?
     	    }
+            TokenType::LeftSquare => {
+    	    	self.parse_expr_arrayinitialiser()?
+    	    }
     	    TokenType::True => {
     		self.lexer.next();
     		Expr::new(self.ast,Node::from(expr::Bool(true)))
@@ -566,6 +569,17 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	Ok(Expr::new(self.ast,Node::from(expr::ArrayLengthExpr(expr))))
     }
 
+    pub fn parse_expr_arrayinitialiser(&mut self) -> Result<'a,Expr> {
+        // "["
+    	self.snap(TokenType::LeftSquare)?;
+    	// Expr, Expr, Expr, ...
+    	let exprs = self.parse_terminated_exprs(TokenType::RightSquare)?;
+    	// "]"
+    	self.snap(TokenType::RightSquare)?;
+    	//
+    	Ok(Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs))))
+    }
+
     pub fn parse_expr_bracketed(&mut self) -> Result<'a,Expr> {
     	// "("
     	self.snap(TokenType::LeftBrace)?;
@@ -575,6 +589,26 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	self.snap(TokenType::RightBrace)?;
     	//
     	expr
+    }
+
+    /// Parse a sequence of zero or more expressions separated by
+    /// comma's and terminated with a given token type.  This is
+    /// useful, for example, for parsing arguments lists.  Note, this
+    /// does *not* consume the terminator.
+    pub fn parse_terminated_exprs(&mut self, terminator: TokenType) -> Result<'a,Vec<Expr>> {
+        let mut exprs = Vec::new();
+        // Since terminator is expected, can skip arbitrary whitespace.
+        self.skip_whitespace()?;
+        // Continue until reached terminator
+        while !self.lookahead(terminator) {
+            if exprs.len() > 0 {
+                self.snap(TokenType::Comma)?;
+            }
+            exprs.push(self.parse_expr()?);
+            self.skip_whitespace()?;
+        }
+        //
+        Ok(exprs)
     }
 
     // =========================================================================
