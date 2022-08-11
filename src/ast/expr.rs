@@ -27,7 +27,7 @@ impl Expr {
 	    Node::BoolExpr(_) => true,
 	    Node::BinaryExpr(_) => true,
 	    Node::IntExpr(_) => true,
-	    Node::VarExpr(_) => true,
+	    Node::VarAccessExpr(_) => true,
             _ => false
         }
     }
@@ -49,10 +49,10 @@ impl From<Bool> for Node {
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct IntExpr(pub i32);
+pub struct Int(pub i32);
 
-impl From<IntExpr> for Node {
-    fn from(s: IntExpr) -> Self { Node::IntExpr(s) }
+impl From<Int> for Node {
+    fn from(s: Int) -> Self { Node::IntExpr(s) }
 }
 
 // =============================================================================
@@ -60,10 +60,10 @@ impl From<IntExpr> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct VarExpr(pub Name);
+pub struct VarAccess(pub Name);
 
-impl From<VarExpr> for Node {
-    fn from(s: VarExpr) -> Self { Node::VarExpr(s) }
+impl From<VarAccess> for Node {
+    fn from(s: VarAccess) -> Self { Node::VarAccessExpr(s) }
 }
 
 // =============================================================================
@@ -71,10 +71,10 @@ impl From<VarExpr> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BinaryExpr(pub BinOp, pub Expr, pub Expr);
+pub struct Binary(pub BinOp, pub Expr, pub Expr);
 
-impl From<BinaryExpr> for Node {
-    fn from(s: BinaryExpr) -> Self { Node::BinaryExpr(s) }
+impl From<Binary> for Node {
+    fn from(s: Binary) -> Self { Node::BinaryExpr(s) }
 }
 
 #[derive(Clone,Copy,Debug,PartialEq)]
@@ -118,10 +118,10 @@ impl BinOp {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ArrayAccessExpr(pub Expr, pub Expr);
+pub struct ArrayAccess(pub Expr, pub Expr);
 
-impl From<ArrayAccessExpr> for Node {
-    fn from(s: ArrayAccessExpr) -> Self { Node::ArrayAccessExpr(s) }
+impl From<ArrayAccess> for Node {
+    fn from(s: ArrayAccess) -> Self { Node::ArrayAccessExpr(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]
@@ -132,8 +132,8 @@ impl From<ArrayInitialiser> for Node {
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ArrayLengthExpr(pub Expr);
+pub struct ArrayLength(pub Expr);
 
-impl From<ArrayLengthExpr> for Node {
-    fn from(s: ArrayLengthExpr) -> Self { Node::ArrayLengthExpr(s) }
+impl From<ArrayLength> for Node {
+    fn from(s: ArrayLength) -> Self { Node::ArrayLengthExpr(s) }
 }

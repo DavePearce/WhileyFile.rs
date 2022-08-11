@@ -41,13 +41,13 @@ pub enum Node {
     SkipStmt(SkipStmt),
     VarDeclStmt(VarDeclStmt),
     // Expressions
-    ArrayAccessExpr(expr::ArrayAccessExpr),
+    ArrayAccessExpr(expr::ArrayAccess),
     ArrayInitialiserExpr(expr::ArrayInitialiser),
-    ArrayLengthExpr(expr::ArrayLengthExpr),
+    ArrayLengthExpr(expr::ArrayLength),
     BoolExpr(expr::Bool),
-    BinaryExpr(expr::BinaryExpr),
-    IntExpr(expr::IntExpr),
-    VarExpr(expr::VarExpr),
+    BinaryExpr(expr::Binary),
+    IntExpr(expr::Int),
+    VarAccessExpr(expr::VarAccess),
     // Types
     ArrayType(ArrayType),
     BoolType(BoolType),

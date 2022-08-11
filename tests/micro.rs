@@ -431,9 +431,9 @@ fn test_function_25() {
 #[test]
 fn test_function_26() {
     let ast = check_parse("function f(i32 n)->() requires n < 0:\n skip");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
-    assert_eq!(ast.get(5),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(6),&Node::from(expr::BinaryExpr(BinOp::LessThan,Expr(4),Expr(5))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
+    assert_eq!(ast.get(5),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Requires(Expr(6))];
     assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
@@ -442,9 +442,9 @@ fn test_function_26() {
 #[test]
 fn test_function_27() {
     let ast = check_parse("function f(int n)->() ensures n > 0:\n skip");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
-    assert_eq!(ast.get(5),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(6),&Node::from(expr::BinaryExpr(BinOp::GreaterThan,Expr(4),Expr(5))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
+    assert_eq!(ast.get(5),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::GreaterThan,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Ensures(Expr(6))];
     assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
@@ -482,9 +482,9 @@ fn test_method_03() {
 #[test]
 fn test_method_04() {
     let ast = check_parse("method f(i32 n)->()\n requires n <= 0:\n skip");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
-    assert_eq!(ast.get(5),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(6),&Node::from(expr::BinaryExpr(BinOp::LessThanOrEquals,Expr(4),Expr(5))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
+    assert_eq!(ast.get(5),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThanOrEquals,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Requires(Expr(6))];
     assert_eq!(ast.get(9),&Node::from(MethodDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
@@ -604,36 +604,36 @@ fn test_assert_10() {
 fn test_assert_11() {
     let ast = check_parse("function f(bool b) -> ():\n assert b");
     check_name(ast.get(2),"b");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(AssertStmt(Expr(4))));
 }
 
 #[test]
 fn test_assert_12() {
     let ast = check_parse("function f(i32 i) -> ():\n assert i < 0");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
-    assert_eq!(ast.get(5),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(6),&Node::from(expr::BinaryExpr(BinOp::LessThan,Expr(4),Expr(5))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
+    assert_eq!(ast.get(5),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(5))));
     assert_eq!(ast.get(7),&Node::from(AssertStmt(Expr(6))));
 }
 
 #[test]
 fn test_assert_12b() {
     let ast = check_parse("function f(i32 i) -> ():\n assert i /*nout*/ < 0");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(BlockComment("/*nout*/".to_string())));
-    assert_eq!(ast.get(6),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(7),&Node::from(expr::BinaryExpr(BinOp::LessThan,Expr(4),Expr(6))));
+    assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
     assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
 }
 
 #[test]
 fn test_assert_12c() {
     let ast = check_parse("function f(i32 i) -> ():\n assert i < /*nout*/ 0");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(BlockComment("/*nout*/".to_string())));
-    assert_eq!(ast.get(6),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(7),&Node::from(expr::BinaryExpr(BinOp::LessThan,Expr(4),Expr(6))));
+    assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
     assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
 }
 
@@ -645,10 +645,10 @@ fn test_assert_12d() {
 #[test]
 fn test_assert_12e() {
     let ast = check_parse("function f(i32 i) -> ():\n assert i < //nout\n    0");
-    assert_eq!(ast.get(4),&Node::from(expr::VarExpr(Name(3))));
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(LineComment("//nout".to_string())));
-    assert_eq!(ast.get(6),&Node::from(expr::IntExpr(0)));
-    assert_eq!(ast.get(7),&Node::from(expr::BinaryExpr(BinOp::LessThan,Expr(4),Expr(6))));
+    assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
+    assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
     assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
 }
 

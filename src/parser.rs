@@ -485,7 +485,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                     // FIXME: turn this into a loop!
 	            let rhs = self.parse_expr_binary(level-1)?;
                     let bop = BinOp::from(&t).unwrap();
-	            let node = Node::from(expr::BinaryExpr(bop,lhs,rhs));
+	            let node = Node::from(expr::Binary(bop,lhs,rhs));
 	            Ok(Expr::new(self.ast,node))
                 }
                 Err(_) => {
@@ -515,7 +515,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         self.snap(TokenType::LeftSquare)?;
         let index = self.parse_expr()?;
         self.snap(TokenType::RightSquare)?;
-        Ok(Expr::new(self.ast,Node::from(expr::ArrayAccessExpr(src,index))))
+        Ok(Expr::new(self.ast,Node::from(expr::ArrayAccess(src,index))))
     }
 
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
@@ -534,11 +534,11 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	    }
 	    TokenType::Identifier => {
 		let n = self.parse_identifier();
-		Expr::new(self.ast,Node::from(expr::VarExpr(n.unwrap())))
+		Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())))
 	    }
     	    TokenType::Integer => {
     	    	self.lexer.next();
-		Expr::new(self.ast,Node::from(expr::IntExpr(lookahead.as_int())))
+		Expr::new(self.ast,Node::from(expr::Int(lookahead.as_int())))
     	    }
     	    TokenType::LeftBrace => {
     	    	self.parse_expr_bracketed()?
@@ -566,7 +566,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	// "|"
     	self.snap(TokenType::Bar)?;
     	//
-    	Ok(Expr::new(self.ast,Node::from(expr::ArrayLengthExpr(expr))))
+    	Ok(Expr::new(self.ast,Node::from(expr::ArrayLength(expr))))
     }
 
     pub fn parse_expr_arrayinitialiser(&mut self) -> Result<'a,Expr> {
