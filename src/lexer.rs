@@ -1,5 +1,4 @@
 use std::iter::Peekable;
-use std::cmp;
 use std::str::CharIndices;
 // =================================================================
 // Token

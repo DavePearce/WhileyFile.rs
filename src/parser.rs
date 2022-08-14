@@ -331,7 +331,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             }
         }
         // Done
-        Ok(Stmt::new(self.ast,Node::from(BlockStmt(stmts))))
+        Ok(Stmt::new(self.ast,Node::from(stmt::Block(stmts))))
     }
 
     /// Determine (and check) the indentation level for a new block.
@@ -411,7 +411,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	// Expr
     	let expr = self.parse_expr()?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(AssertStmt(expr))))
+    	Ok(Stmt::new(self.ast,Node::from(stmt::Assert(expr))))
     }
 
     pub fn parse_stmt_return(&mut self) -> Result<'a,Stmt> {
@@ -421,10 +421,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         self.skip_linespace();
         // See whether an expression follows
         let stmt = match self.snap(TokenType::NewLine) {
-            Ok(_) => Node::from(ReturnStmt(Option::None)),
+            Ok(_) => Node::from(stmt::Return(Option::None)),
             Err(_) => {
                 let expr = self.parse_expr()?;
-                Node::from(ReturnStmt(Option::Some(expr)))
+                Node::from(stmt::Return(Option::Some(expr)))
             }
         };
         // Done
@@ -435,7 +435,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	// "skip"
     	self.snap(TokenType::Skip)?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(SkipStmt())))
+    	Ok(Stmt::new(self.ast,Node::from(stmt::Skip())))
     }
 
     pub fn parse_vardecl_stmt(&mut self) -> Result<'a,Stmt> {
@@ -453,7 +453,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             Err(_) => Option::None
         };
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(VarDeclStmt(vtype,name,expr))))
+    	Ok(Stmt::new(self.ast,Node::from(stmt::VarDecl(vtype,name,expr))))
     }
 
     // =========================================================================

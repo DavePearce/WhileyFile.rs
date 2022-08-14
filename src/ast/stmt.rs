@@ -40,10 +40,10 @@ impl Into<usize> for Stmt {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct AssertStmt(pub Expr);
+pub struct Assert(pub Expr);
 
-impl From<AssertStmt> for Node {
-    fn from(s: AssertStmt) -> Self { Node::AssertStmt(s) }
+impl From<Assert> for Node {
+    fn from(s: Assert) -> Self { Node::AssertStmt(s) }
 }
 
 // =============================================================================
@@ -51,10 +51,10 @@ impl From<AssertStmt> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BlockStmt(pub Vec<Stmt>);
+pub struct Block(pub Vec<Stmt>);
 
-impl From<BlockStmt> for Node {
-    fn from(s: BlockStmt) -> Self { Node::BlockStmt(s) }
+impl From<Block> for Node {
+    fn from(s: Block) -> Self { Node::BlockStmt(s) }
 }
 
 // =============================================================================
@@ -62,10 +62,10 @@ impl From<BlockStmt> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ReturnStmt(pub Option<Expr>);
+pub struct Return(pub Option<Expr>);
 
-impl From<ReturnStmt> for Node {
-    fn from(s: ReturnStmt) -> Self { Node::ReturnStmt(s) }
+impl From<Return> for Node {
+    fn from(s: Return) -> Self { Node::ReturnStmt(s) }
 }
 
 // =============================================================================
@@ -73,10 +73,10 @@ impl From<ReturnStmt> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct SkipStmt();
+pub struct Skip();
 
-impl From<SkipStmt> for Node {
-    fn from(s: SkipStmt) -> Self { Node::SkipStmt(s) }
+impl From<Skip> for Node {
+    fn from(s: Skip) -> Self { Node::SkipStmt(s) }
 }
 
 // =============================================================================
@@ -84,8 +84,8 @@ impl From<SkipStmt> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct VarDeclStmt(pub Type, pub Name, pub Option<Expr>);
+pub struct VarDecl(pub Type, pub Name, pub Option<Expr>);
 
-impl From<VarDeclStmt> for Node {
-    fn from(s: VarDeclStmt) -> Self { Node::VarDeclStmt(s) }
+impl From<VarDecl> for Node {
+    fn from(s: VarDecl) -> Self { Node::VarDeclStmt(s) }
 }

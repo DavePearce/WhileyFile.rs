@@ -1,7 +1,7 @@
 // Hidden
 mod decl;
 pub mod expr;
-mod stmt;
+pub mod stmt;
 mod types;
 
 use std::fmt;
@@ -11,7 +11,7 @@ use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::*;
 pub use self::expr::{BinOp,Expr};
-pub use self::stmt::*;
+pub use self::stmt::{Stmt};
 pub use self::types::*;
 
 // =============================================================================
@@ -35,11 +35,11 @@ pub enum Node {
     FunctionDecl(FunctionDecl),
     MethodDecl(MethodDecl),
     // Statements
-    AssertStmt(AssertStmt),
-    BlockStmt(BlockStmt),
-    ReturnStmt(ReturnStmt),
-    SkipStmt(SkipStmt),
-    VarDeclStmt(VarDeclStmt),
+    AssertStmt(stmt::Assert),
+    BlockStmt(stmt::Block),
+    ReturnStmt(stmt::Return),
+    SkipStmt(stmt::Skip),
+    VarDeclStmt(stmt::VarDecl),
     // Expressions
     ArrayAccessExpr(expr::ArrayAccess),
     ArrayInitialiserExpr(expr::ArrayInitialiser),

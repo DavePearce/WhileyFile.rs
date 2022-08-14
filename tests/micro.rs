@@ -265,8 +265,8 @@ fn test_function_0E() {
 fn test_function_10() {
     let ast = check_parse("function f()->():\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(2),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
@@ -274,8 +274,8 @@ fn test_function_10() {
 fn test_function_11() {
     let ast = check_parse("function f() ->():\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(2),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
@@ -283,8 +283,8 @@ fn test_function_11() {
 fn test_function_12() {
     let ast = check_parse("function f()-> ():\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(2),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
@@ -293,8 +293,8 @@ fn test_function_12() {
 fn test_function_13() {
     let ast = check_parse("function f() -> ():\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(2),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
@@ -304,8 +304,8 @@ fn test_function_14() {
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
     check_name(ast.get(2),"x");
-    assert_eq!(ast.get(3),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(4),&Node::from(BlockStmt(vec![Stmt(3)])));
+    assert_eq!(ast.get(3),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(4),&Node::from(stmt::Block(vec![Stmt(3)])));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     assert_eq!(ast.get(5),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],vec![],Stmt(4))));
 }
@@ -320,8 +320,8 @@ fn test_function_15() {
     check_name(ast.get(4),"b");
     assert_eq!(ast.get(5),&Node::from(BoolType()));
     check_name(ast.get(6),"r");
-    assert_eq!(ast.get(7),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(8),&Node::from(BlockStmt(vec![Stmt(7)])));
+    assert_eq!(ast.get(7),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(8),&Node::from(stmt::Block(vec![Stmt(7)])));
     let params = vec![Parameter{declared:Type(1),name:Name(2)},Parameter{declared:Type(3),name:Name(4)}];
     let returns = vec![Parameter{declared:Type(5),name:Name(6)}];
     assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,returns,vec![],Stmt(8))));
@@ -332,8 +332,8 @@ fn test_function_16() {
     let ast = check_parse("function f()->(): // line comment\n skip");
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(LineComment("// line comment".to_string())));
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -342,8 +342,8 @@ fn test_function_17() {
     let ast = check_parse("// line comment\nfunction f()->():\n skip");
     assert_eq!(ast.get(0),&Node::from(LineComment("// line comment".to_string())));
     check_name(ast.get(1),"f");
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -352,8 +352,8 @@ fn test_function_18() {
     let ast = check_parse("function f()->(): /* block comment */\n skip");
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* block comment */".to_string())));
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -362,8 +362,8 @@ fn test_function_19() {
     let ast = check_parse("/* block comment */\nfunction f()->():\n skip");
     assert_eq!(ast.get(0),&Node::from(BlockComment("/* block comment */".to_string())));
     check_name(ast.get(1),"f");
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -372,8 +372,8 @@ fn test_function_20() {
     let ast = check_parse("function f()->():\n // line comment\n skip");
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(LineComment("// line comment".to_string())));
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -381,9 +381,9 @@ fn test_function_20() {
 fn test_function_21() {
     let ast = check_parse("function f()->():\n skip // line comment");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(LineComment("// line comment".to_string())));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -392,8 +392,8 @@ fn test_function_22() {
     let ast = check_parse("function f()->():\n /** line comment */\n skip");
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/** line comment */".to_string())));
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(2)])));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -401,9 +401,9 @@ fn test_function_22() {
 fn test_function_23() {
     let ast = check_parse("function f()->():\n skip /* line comment */");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line comment */".to_string())));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -411,9 +411,9 @@ fn test_function_23() {
 fn test_function_24() {
     let ast = check_parse("function f()->():\n skip /* line\n comment */");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line\n comment */".to_string())));
-    assert_eq!(ast.get(3),&Node::from(BlockStmt(vec![Stmt(1)])));
+    assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
     assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
@@ -421,10 +421,10 @@ fn test_function_24() {
 fn test_function_25() {
     let ast = check_parse("function f()->():\n skip /* line\n comment */\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line\n comment */".to_string())));
-    assert_eq!(ast.get(3),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(4),&Node::from(BlockStmt(vec![Stmt(1),Stmt(3)])));
+    assert_eq!(ast.get(3),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(4),&Node::from(stmt::Block(vec![Stmt(1),Stmt(3)])));
     assert_eq!(ast.get(5),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(4))));
 }
 
@@ -502,14 +502,14 @@ fn test_skip_01() {
 #[test]
 fn test_skip_02() {
     let ast = check_parse("function f() -> ():\n skip");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
 }
 
 #[test]
 fn test_skip_03() {
     let ast = check_parse("function f() -> ():\n skip\n skip");
-    assert_eq!(ast.get(1),&Node::from(SkipStmt()));
-    assert_eq!(ast.get(2),&Node::from(SkipStmt()));
+    assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
+    assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
 }
 
 // ======================================================
@@ -530,7 +530,7 @@ fn test_assert_05() {
 fn test_assert_06() {
     let ast = check_parse("function f() -> ():\n assert true");
     assert_eq!(ast.get(1),&Node::from(expr::Bool(true)));
-    assert_eq!(ast.get(2),&Node::from(AssertStmt(Expr(1))));
+    assert_eq!(ast.get(2),&Node::from(stmt::Assert(Expr(1))));
 }
 
 #[test]
@@ -538,7 +538,7 @@ fn test_assert_06b() {
     let ast = check_parse("function f() -> ():\n assert /* nothing */ true");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* nothing */".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(true)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
@@ -546,21 +546,21 @@ fn test_assert_06c() {
     let ast = check_parse("function f() -> ():\n assert // nothing\n    true");
     assert_eq!(ast.get(1),&Node::from(LineComment("// nothing".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(true)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
 fn test_assert_07() {
     let ast = check_parse("function f() -> ():\n assert false");
     assert_eq!(ast.get(1),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(2),&Node::from(AssertStmt(Expr(1))));
+    assert_eq!(ast.get(2),&Node::from(stmt::Assert(Expr(1))));
 }
 
 #[test]
 fn test_assert_08() {
     let ast = check_parse("function f() -> ():\n assert (false)");
     assert_eq!(ast.get(1),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(2),&Node::from(AssertStmt(Expr(1))));
+    assert_eq!(ast.get(2),&Node::from(stmt::Assert(Expr(1))));
 }
 
 #[test]
@@ -568,7 +568,7 @@ fn test_assert_08b() {
     let ast = check_parse("function f() -> ():\n assert ( /* nothing */ false)");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* nothing */".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
@@ -576,7 +576,7 @@ fn test_assert_08c() {
     let ast = check_parse("function f() -> ():\n assert (/* nothing */ false)");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* nothing */".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
@@ -584,7 +584,7 @@ fn test_assert_08d() {
     let ast = check_parse("function f() -> ():\n assert ( /* nothing */false)");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* nothing */".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
@@ -592,7 +592,7 @@ fn test_assert_08e() {
     let ast = check_parse("function f() -> ():\n assert (/* nothing */false)");
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* nothing */".to_string())));
     assert_eq!(ast.get(2),&Node::from(expr::Bool(false)));
-    assert_eq!(ast.get(3),&Node::from(AssertStmt(Expr(2))));
+    assert_eq!(ast.get(3),&Node::from(stmt::Assert(Expr(2))));
 }
 
 #[test]
@@ -605,7 +605,7 @@ fn test_assert_11() {
     let ast = check_parse("function f(bool b) -> ():\n assert b");
     check_name(ast.get(2),"b");
     assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
-    assert_eq!(ast.get(5),&Node::from(AssertStmt(Expr(4))));
+    assert_eq!(ast.get(5),&Node::from(stmt::Assert(Expr(4))));
 }
 
 #[test]
@@ -614,7 +614,7 @@ fn test_assert_12() {
     assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(expr::Int(0)));
     assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(5))));
-    assert_eq!(ast.get(7),&Node::from(AssertStmt(Expr(6))));
+    assert_eq!(ast.get(7),&Node::from(stmt::Assert(Expr(6))));
 }
 
 #[test]
@@ -624,7 +624,7 @@ fn test_assert_12b() {
     assert_eq!(ast.get(5),&Node::from(BlockComment("/*nout*/".to_string())));
     assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
     assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
-    assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
+    assert_eq!(ast.get(8),&Node::from(stmt::Assert(Expr(7))));
 }
 
 #[test]
@@ -634,7 +634,7 @@ fn test_assert_12c() {
     assert_eq!(ast.get(5),&Node::from(BlockComment("/*nout*/".to_string())));
     assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
     assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
-    assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
+    assert_eq!(ast.get(8),&Node::from(stmt::Assert(Expr(7))));
 }
 
 #[test]
@@ -649,7 +649,7 @@ fn test_assert_12e() {
     assert_eq!(ast.get(5),&Node::from(LineComment("//nout".to_string())));
     assert_eq!(ast.get(6),&Node::from(expr::Int(0)));
     assert_eq!(ast.get(7),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(6))));
-    assert_eq!(ast.get(8),&Node::from(AssertStmt(Expr(7))));
+    assert_eq!(ast.get(8),&Node::from(stmt::Assert(Expr(7))));
 }
 
 // ======================================================
