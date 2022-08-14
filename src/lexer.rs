@@ -9,6 +9,7 @@ pub enum TokenType {
     Ampersand,
     AmpersandAmpersand,
     Assert,
+    Assume,
     Bar,
     BarBar,
     BlockComment,
@@ -247,6 +248,7 @@ impl<'a> Lexer<'a> {
         let content = &self.input[start..end];
         let kind = match content {
 	    "assert" => TokenType::Assert,
+	    "assume" => TokenType::Assume,
 	    "bool" => TokenType::Bool,
 	    "break" => TokenType::Break,
 	    "case" => TokenType::Case,

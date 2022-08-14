@@ -558,6 +558,13 @@ fn test_assert_07() {
 }
 
 #[test]
+fn test_assert_07b() {
+    let ast = check_parse("function f() -> ():\n assume false");
+    assert_eq!(ast.get(1),&Node::from(expr::Bool(false)));
+    assert_eq!(ast.get(2),&Node::from(stmt::Assume(Expr(1))));
+}
+
+#[test]
 fn test_assert_08() {
     let ast = check_parse("function f() -> ():\n assert (false)");
     assert_eq!(ast.get(1),&Node::from(expr::Bool(false)));
@@ -607,6 +614,14 @@ fn test_assert_11() {
     check_name(ast.get(2),"b");
     assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
     assert_eq!(ast.get(5),&Node::from(stmt::Assert(Expr(4))));
+}
+
+#[test]
+fn test_assert_11b() {
+    let ast = check_parse("function f(bool b) -> ():\n assume b");
+    check_name(ast.get(2),"b");
+    assert_eq!(ast.get(4),&Node::from(expr::VarAccess(Name(3))));
+    assert_eq!(ast.get(5),&Node::from(stmt::Assume(Expr(4))));
 }
 
 #[test]

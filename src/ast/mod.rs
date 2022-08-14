@@ -38,6 +38,7 @@ pub enum Node {
     MethodDecl(decl::Method),
     // Statements
     AssertStmt(stmt::Assert),
+    AssumeStmt(stmt::Assume),
     BlockStmt(stmt::Block),
     ReturnStmt(stmt::Return),
     SkipStmt(stmt::Skip),

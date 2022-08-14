@@ -395,6 +395,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	//
     	let stmt = match lookahead.kind {
     	    TokenType::Assert => self.parse_stmt_assert(),
+    	    TokenType::Assume => self.parse_stmt_assume(),
     	    TokenType::Return => self.parse_stmt_return(),
     	    TokenType::Skip => self.parse_stmt_skip(),
     	    _ => self.parse_vardecl_stmt()
@@ -412,6 +413,15 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let expr = self.parse_expr()?;
     	// Done
     	Ok(Stmt::new(self.ast,Node::from(stmt::Assert(expr))))
+    }
+
+    pub fn parse_stmt_assume(&mut self) -> Result<'a,Stmt> {
+    	// "assert"
+    	self.snap(TokenType::Assume)?;
+    	// Expr
+    	let expr = self.parse_expr()?;
+    	// Done
+    	Ok(Stmt::new(self.ast,Node::from(stmt::Assume(expr))))
     }
 
     pub fn parse_stmt_return(&mut self) -> Result<'a,Stmt> {

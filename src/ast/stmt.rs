@@ -22,6 +22,7 @@ impl Stmt {
     pub fn is(t: &Node) -> bool {
         match t {
 	    Node::AssertStmt(_) => true,
+	    Node::AssumeStmt(_) => true,
 	    Node::BlockStmt(_) => true,
 	    Node::ReturnStmt(_) => true,
 	    Node::SkipStmt(_) => true,
@@ -44,6 +45,17 @@ pub struct Assert(pub Expr);
 
 impl From<Assert> for Node {
     fn from(s: Assert) -> Self { Node::AssertStmt(s) }
+}
+
+// =============================================================================
+// Assume
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Assume(pub Expr);
+
+impl From<Assume> for Node {
+    fn from(s: Assume) -> Self { Node::AssumeStmt(s) }
 }
 
 // =============================================================================
