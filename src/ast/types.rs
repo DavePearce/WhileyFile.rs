@@ -42,10 +42,10 @@ impl Into<usize> for Type {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ArrayType(pub Type);
+pub struct Array(pub Type);
 
-impl From<ArrayType> for Node {
-    fn from(s: ArrayType) -> Self { Node::ArrayType(s) }
+impl From<Array> for Node {
+    fn from(s: Array) -> Self { Node::ArrayType(s) }
 }
 
 // =============================================================================
@@ -53,10 +53,10 @@ impl From<ArrayType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct BoolType();
+pub struct Bool();
 
-impl From<BoolType> for Node {
-    fn from(s: BoolType) -> Self { Node::BoolType(s) }
+impl From<Bool> for Node {
+    fn from(s: Bool) -> Self { Node::BoolType(s) }
 }
 
 // =============================================================================
@@ -64,10 +64,10 @@ impl From<BoolType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct IntType(pub bool, pub u8);
+pub struct Int(pub bool, pub u8);
 
-impl From<IntType> for Node {
-    fn from(s: IntType) -> Self { Node::IntType(s) }
+impl From<Int> for Node {
+    fn from(s: Int) -> Self { Node::IntType(s) }
 }
 
 // =============================================================================
@@ -75,10 +75,10 @@ impl From<IntType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct NominalType(pub Name);
+pub struct Nominal(pub Name);
 
-impl From<NominalType> for Node {
-    fn from(s: NominalType) -> Self { Node::NominalType(s) }
+impl From<Nominal> for Node {
+    fn from(s: Nominal) -> Self { Node::NominalType(s) }
 }
 
 // =============================================================================
@@ -86,10 +86,10 @@ impl From<NominalType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct NullType();
+pub struct Null();
 
-impl From<NullType> for Node {
-    fn from(s: NullType) -> Self { Node::NullType(s) }
+impl From<Null> for Node {
+    fn from(s: Null) -> Self { Node::NullType(s) }
 }
 
 // =============================================================================
@@ -97,10 +97,10 @@ impl From<NullType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct RecordType(pub Vec<(Type,Name)>);
+pub struct Record(pub Vec<(Type,Name)>);
 
-impl From<RecordType> for Node {
-    fn from(s: RecordType) -> Self { Node::RecordType(s) }
+impl From<Record> for Node {
+    fn from(s: Record) -> Self { Node::RecordType(s) }
 }
 
 // =============================================================================
@@ -108,10 +108,10 @@ impl From<RecordType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct ReferenceType(pub Type);
+pub struct Reference(pub Type);
 
-impl From<ReferenceType> for Node {
-    fn from(s: ReferenceType) -> Self { Node::ReferenceType(s) }
+impl From<Reference> for Node {
+    fn from(s: Reference) -> Self { Node::ReferenceType(s) }
 }
 
 // =============================================================================
@@ -119,8 +119,8 @@ impl From<ReferenceType> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct VoidType();
+pub struct Void();
 
-impl From<VoidType> for Node {
-    fn from(s: VoidType) -> Self { Node::VoidType(s) }
+impl From<Void> for Node {
+    fn from(s: Void) -> Self { Node::VoidType(s) }
 }

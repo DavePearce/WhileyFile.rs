@@ -20,146 +20,146 @@ fn test_type_02() {
 fn test_type_03() {
     let ast = check_parse("type t is bool");
     check_name(ast.get(0),"t");
-    assert_eq!(ast.get(1),&Node::from(BoolType{}));
+    assert_eq!(ast.get(1),&Node::from(types::Bool{}));
 }
 
 #[test]
 fn test_type_04() {
     let ast = check_parse("type nat is i8");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,8)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,8)));
 }
 
 #[test]
 fn test_type_05() {
     let ast = check_parse("type nat is i16");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,16)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,16)));
 }
 
 #[test]
 fn test_type_06() {
     let ast = check_parse("type nat is i32");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
 }
 
 #[test]
 fn test_type_07() {
     let ast = check_parse("type nat is i64");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,64)));
 }
 
 #[test]
 fn test_type_08() {
     let ast = check_parse("type nat is u8");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,8)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,8)));
 }
 
 #[test]
 fn test_type_09() {
     let ast = check_parse("type nat is u16");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,16)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,16)));
 }
 
 #[test]
 fn test_type_10() {
     let ast = check_parse("type nat is u32");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,32)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,32)));
 }
 
 #[test]
 fn test_type_11() {
     let ast = check_parse("type nat is u64");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,64)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,64)));
 }
 
 #[test]
 fn test_type_12() {
     let ast = check_parse("type nat is i32[]");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
-    assert_eq!(ast.get(2),&Node::from(ArrayType(Type(1))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
+    assert_eq!(ast.get(2),&Node::from(types::Array(Type(1))));
 }
 
 #[test]
 fn test_type_13() {
     let ast = check_parse("type nat is i32[][]");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
-    assert_eq!(ast.get(2),&Node::from(ArrayType(Type(1))));
-    assert_eq!(ast.get(3),&Node::from(ArrayType(Type(2))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
+    assert_eq!(ast.get(2),&Node::from(types::Array(Type(1))));
+    assert_eq!(ast.get(3),&Node::from(types::Array(Type(2))));
 }
 
 #[test]
 fn test_type_14() {
     let ast = check_parse("type ref is &int");
     check_name(ast.get(0),"ref");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,0)));
-    assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,0)));
+    assert_eq!(ast.get(2),&Node::from(types::Reference(Type(1))));
 }
 
 #[test]
 fn test_type_15() {
     let ast = check_parse("type ref is &(&uint)");
     check_name(ast.get(0),"ref");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,0)));
-    assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
-    assert_eq!(ast.get(3),&Node::from(ReferenceType(Type(2))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,0)));
+    assert_eq!(ast.get(2),&Node::from(types::Reference(Type(1))));
+    assert_eq!(ast.get(3),&Node::from(types::Reference(Type(2))));
 }
 
 #[test]
 fn test_type_16() {
     let ast = check_parse("type rec is {i64 f}");
     check_name(ast.get(0),"rec");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,64)));
     check_name(ast.get(2),"f");
-    assert_eq!(ast.get(3),&Node::from(RecordType(vec![(Type(1),Name(2))])));
+    assert_eq!(ast.get(3),&Node::from(types::Record(vec![(Type(1),Name(2))])));
 }
 
 #[test]
 fn test_type_17() {
     let ast = check_parse("type rec is {i32 f, u16 g}");
     check_name(ast.get(0),"rec");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
     check_name(ast.get(2),"f");
-    assert_eq!(ast.get(3),&Node::from(IntType(false,16)));
+    assert_eq!(ast.get(3),&Node::from(types::Int(false,16)));
     check_name(ast.get(4),"g");
-    assert_eq!(ast.get(5),&Node::from(RecordType(vec![(Type(1),Name(2)),(Type(3),Name(4))])));
+    assert_eq!(ast.get(5),&Node::from(types::Record(vec![(Type(1),Name(2)),(Type(3),Name(4))])));
 }
 
 #[test]
 fn test_type_18() {
     let ast = check_parse("type rar is (&u32)[]");
     check_name(ast.get(0),"rar");
-    assert_eq!(ast.get(1),&Node::from(IntType(false,32)));
-    assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
-    assert_eq!(ast.get(3),&Node::from(ArrayType(Type(2))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(false,32)));
+    assert_eq!(ast.get(2),&Node::from(types::Reference(Type(1))));
+    assert_eq!(ast.get(3),&Node::from(types::Array(Type(2))));
 }
 
 #[test]
 fn test_type_19() {
     let ast = check_parse("type rec is {&i8 f, u16[] g}");
     check_name(ast.get(0),"rec");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,8)));
-    assert_eq!(ast.get(2),&Node::from(ReferenceType(Type(1))));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,8)));
+    assert_eq!(ast.get(2),&Node::from(types::Reference(Type(1))));
     check_name(ast.get(3),"f");
-    assert_eq!(ast.get(4),&Node::from(IntType(false,16)));
-    assert_eq!(ast.get(5),&Node::from(ArrayType(Type(4))));
+    assert_eq!(ast.get(4),&Node::from(types::Int(false,16)));
+    assert_eq!(ast.get(5),&Node::from(types::Array(Type(4))));
     check_name(ast.get(6),"g");
-    assert_eq!(ast.get(7),&Node::from(RecordType(vec![(Type(2),Name(3)),(Type(5),Name(6))])));
+    assert_eq!(ast.get(7),&Node::from(types::Record(vec![(Type(2),Name(3)),(Type(5),Name(6))])));
 }
 
 #[test]
 fn test_type_20() {
     let ast = check_parse("type nat is i64 // line comment");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,64)));
     assert_eq!(ast.get(2),&Node::from(LineComment("// line comment".to_string())));
 }
 
@@ -168,14 +168,14 @@ fn test_type_21() {
     let ast = check_parse("// line comment\ntype nat is i64");
     assert_eq!(ast.get(0),&Node::from(LineComment("// line comment".to_string())));
     check_name(ast.get(1),"nat");
-    assert_eq!(ast.get(2),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(2),&Node::from(types::Int(true,64)));
 }
 
 #[test]
 fn test_type_22() {
     let ast = check_parse("type nat is i64 /* block comment */");
     check_name(ast.get(0),"nat");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,64)));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* block comment */".to_string())));
 }
 
@@ -184,7 +184,7 @@ fn test_type_23() {
     let ast = check_parse("/* block comment */\ntype nat is i64");
     assert_eq!(ast.get(0),&Node::from(BlockComment("/* block comment */".to_string())));
     check_name(ast.get(1),"nat");
-    assert_eq!(ast.get(2),&Node::from(IntType(true,64)));
+    assert_eq!(ast.get(2),&Node::from(types::Int(true,64)));
 }
 
 // ======================================================
@@ -302,7 +302,7 @@ fn test_function_13() {
 fn test_function_14() {
     let ast = check_parse("function f(i32 x):\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
     check_name(ast.get(2),"x");
     assert_eq!(ast.get(3),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(4),&Node::from(stmt::Block(vec![Stmt(3)])));
@@ -314,11 +314,11 @@ fn test_function_14() {
 fn test_function_15() {
     let ast = check_parse("function f(i32 i, bool b) -> (bool r):\n skip");
     check_name(ast.get(0),"f");
-    assert_eq!(ast.get(1),&Node::from(IntType(true,32)));
+    assert_eq!(ast.get(1),&Node::from(types::Int(true,32)));
     check_name(ast.get(2),"i");
-    assert_eq!(ast.get(3),&Node::from(BoolType()));
+    assert_eq!(ast.get(3),&Node::from(types::Bool()));
     check_name(ast.get(4),"b");
-    assert_eq!(ast.get(5),&Node::from(BoolType()));
+    assert_eq!(ast.get(5),&Node::from(types::Bool()));
     check_name(ast.get(6),"r");
     assert_eq!(ast.get(7),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(8),&Node::from(stmt::Block(vec![Stmt(7)])));

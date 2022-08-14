@@ -657,7 +657,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let mut t = self.parse_type_bracketed()?;
     	// Unwind references
     	for _i in 0..n {
-            t = Type::new(self.ast,Node::from(ReferenceType(t)));
+            t = Type::new(self.ast,Node::from(types::Reference(t)));
     	}
     	// Done
     	Ok(t)
@@ -684,7 +684,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	    fields.push((f_type,f_name));
     	}
     	// Done
-    	Ok(Type::new(self.ast,Node::from(RecordType(fields))))
+    	Ok(Type::new(self.ast,Node::from(types::Record(fields))))
     }
 
     /// Parse an array type, such as `i32[]`, `bool[][]`, etc.
@@ -694,7 +694,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	// ([])*
     	while self.snap(TokenType::LeftSquare).is_ok() {
     	    self.snap(TokenType::RightSquare)?;
-            t = Type::new(self.ast,Node::from(ArrayType(t)));
+            t = Type::new(self.ast,Node::from(types::Array(t)));
     	}
     	//
     	Ok(t)
@@ -720,16 +720,16 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	let lookahead = self.lexer.peek();
 	// Look at what we've got!
 	let typ_e = match lookahead.kind {
-	    TokenType::Null => Node::from(NullType()),
-	    TokenType::Bool => Node::from(BoolType()),
-	    TokenType::Int(s) => Node::from(IntType(true,s)),
-	    TokenType::Uint(s) => Node::from(IntType(false,s)),
-	    TokenType::Void => Node::from(VoidType()),
+	    TokenType::Null => Node::from(types::Null()),
+	    TokenType::Bool => Node::from(types::Bool()),
+	    TokenType::Int(s) => Node::from(types::Int(true,s)),
+	    TokenType::Uint(s) => Node::from(types::Int(false,s)),
+	    TokenType::Void => Node::from(types::Void()),
             // Nominals
             TokenType::Identifier => {
                 // TODO: manage qualified names here.
                 let n = Name::new(self.ast,&lookahead.content);
-                Node::from(NominalType(n))
+                Node::from(types::Nominal(n))
             }
 	    _ => {
     		return Err(Error::new(lookahead, ErrorCode::UnexpectedToken));

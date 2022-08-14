@@ -2,7 +2,7 @@
 mod decl;
 pub mod expr;
 pub mod stmt;
-mod types;
+pub mod types;
 
 use std::fmt;
 use std::convert::From;
@@ -12,7 +12,7 @@ use syntactic_heap::Ref;
 pub use self::decl::*;
 pub use self::expr::{BinOp,Expr};
 pub use self::stmt::{Stmt};
-pub use self::types::*;
+pub use self::types::{Type};
 
 // =============================================================================
 // Abstract Syntax Tree
@@ -49,14 +49,14 @@ pub enum Node {
     IntExpr(expr::Int),
     VarAccessExpr(expr::VarAccess),
     // Types
-    ArrayType(ArrayType),
-    BoolType(BoolType),
-    IntType(IntType),
-    NominalType(NominalType),
-    NullType(NullType),
-    RecordType(RecordType),
-    ReferenceType(ReferenceType),
-    VoidType(VoidType)
+    ArrayType(types::Array),
+    BoolType(types::Bool),
+    IntType(types::Int),
+    NominalType(types::Nominal),
+    NullType(types::Null),
+    RecordType(types::Record),
+    ReferenceType(types::Reference),
+    VoidType(types::Void)
 }
 
 // =============================================================================
