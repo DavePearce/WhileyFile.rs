@@ -3,6 +3,7 @@ pub mod decl;
 pub mod expr;
 pub mod stmt;
 pub mod types;
+pub mod comment;
 
 use std::fmt;
 use std::convert::From;
@@ -13,6 +14,7 @@ pub use self::decl::{Decl};
 pub use self::expr::{BinOp,Expr};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
+pub use self::comment::*;
 
 // =============================================================================
 // Abstract Syntax Tree
@@ -28,8 +30,8 @@ pub type AbstractSyntaxTree = SyntacticHeap<Node>;
 pub enum Node {
     // Base
     Utf8(String),
-    LineComment(LineComment),
-    BlockComment(BlockComment),
+    LineComment(comment::Line),
+    BlockComment(comment::Block),
     // Declarations
     TypeDecl(decl::Type),
     FunctionDecl(decl::Function),
@@ -102,24 +104,6 @@ impl From<Ref<'_,Node>> for Name {
     fn from(r: Ref<'_,Node>) -> Name {
 	Name(r.raw_index())
     }
-}
-
-// =============================================================================
-// Misc
-// =============================================================================
-
-#[derive(Clone,Debug,PartialEq)]
-pub struct LineComment(pub String);
-
-impl From<LineComment> for Node {
-    fn from(s: LineComment) -> Self { Node::LineComment(s) }
-}
-
-#[derive(Clone,Debug,PartialEq)]
-pub struct BlockComment(pub String);
-
-impl From<BlockComment> for Node {
-    fn from(s: BlockComment) -> Self { Node::BlockComment(s) }
 }
 
 // =============================================================================

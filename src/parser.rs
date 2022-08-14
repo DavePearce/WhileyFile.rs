@@ -792,13 +792,13 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             TokenType::LineComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(LineComment(comment)));
+                self.ast.push(Node::from(comment::Line(comment)));
                 self.skip_linespace()
             }
             TokenType::BlockComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(BlockComment(comment)));
+                self.ast.push(Node::from(comment::Block(comment)));
                 self.skip_linespace()
             }
             _ => {
@@ -828,13 +828,13 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             TokenType::LineComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(LineComment(comment)));
+                self.ast.push(Node::from(comment::Line(comment)));
                 self.skip_whitespace()
             }
             TokenType::BlockComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(BlockComment(comment)));
+                self.ast.push(Node::from(comment::Block(comment)));
                 self.skip_whitespace()
             }
             _ => {
@@ -864,13 +864,13 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             TokenType::LineComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(LineComment(comment)));
+                self.ast.push(Node::from(comment::Line(comment)));
                 self.match_line_end()
             }
             TokenType::BlockComment => {
                 let tok = self.snap(lookahead.kind)?;
                 let comment = tok.content.to_string();
-                self.ast.push(Node::from(BlockComment(comment)));
+                self.ast.push(Node::from(comment::Block(comment)));
                 self.match_line_end()
             }
             _ => {
