@@ -1,5 +1,5 @@
 // Hidden
-mod decl;
+pub mod decl;
 pub mod expr;
 pub mod stmt;
 pub mod types;
@@ -9,7 +9,7 @@ use std::convert::From;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 // Reexport everything
-pub use self::decl::*;
+pub use self::decl::{Decl};
 pub use self::expr::{BinOp,Expr};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
@@ -31,9 +31,9 @@ pub enum Node {
     LineComment(LineComment),
     BlockComment(BlockComment),
     // Declarations
-    TypeDecl(TypeDecl),
-    FunctionDecl(FunctionDecl),
-    MethodDecl(MethodDecl),
+    TypeDecl(decl::Type),
+    FunctionDecl(decl::Function),
+    MethodDecl(decl::Method),
     // Statements
     AssertStmt(stmt::Assert),
     BlockStmt(stmt::Block),

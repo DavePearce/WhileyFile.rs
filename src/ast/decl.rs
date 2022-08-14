@@ -11,7 +11,7 @@ pub struct Decl { pub index: usize }
 /// Represents a parameter declaration in the source of a given method.
 #[derive(Clone,Debug,PartialEq)]
 pub struct Parameter {
-    pub declared : Type,
+    pub declared : types::Type,
     pub name : Name
 }
 
@@ -45,20 +45,20 @@ impl Into<usize> for Decl {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct TypeDecl {
+pub struct Type {
     modifiers: Vec<Modifier>,
     name: Name,
-    pattern: Type
+    pattern: types::Type
 }
 
-impl TypeDecl {
-    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: Type) -> Self {
-        TypeDecl{modifiers,name,pattern}
+impl Type {
+    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: types::Type) -> Self {
+        Type{modifiers,name,pattern}
     }
 }
 
-impl From<TypeDecl> for Node {
-    fn from(d: TypeDecl) -> Self { Node::TypeDecl(d) }
+impl From<Type> for Node {
+    fn from(d: Type) -> Self { Node::TypeDecl(d) }
 }
 
 // =============================================================================
@@ -66,7 +66,7 @@ impl From<TypeDecl> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct FunctionDecl {
+pub struct Function {
     modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
@@ -75,15 +75,15 @@ pub struct FunctionDecl {
     body:Stmt
 }
 
-impl FunctionDecl {
+impl Function {
     pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
                returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
-        FunctionDecl{modifiers,name,parameters,returns,clauses,body}
+        Function{modifiers,name,parameters,returns,clauses,body}
     }
 }
 
-impl From<FunctionDecl> for Node {
-    fn from(d: FunctionDecl) -> Self { Node::FunctionDecl(d) }
+impl From<Function> for Node {
+    fn from(d: Function) -> Self { Node::FunctionDecl(d) }
 }
 
 // =============================================================================
@@ -91,7 +91,7 @@ impl From<FunctionDecl> for Node {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-    pub struct MethodDecl {
+    pub struct Method {
     modifiers: Vec<Modifier>,
     name: Name,
     parameters: Vec<Parameter>,
@@ -99,15 +99,15 @@ impl From<FunctionDecl> for Node {
     clauses: Vec<Clause>,
     body:Stmt
 }
-impl MethodDecl {
+impl Method {
     pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
                returns: Vec<Parameter>, clauses: Vec<Clause>, body: Stmt) -> Self {
-        MethodDecl{modifiers,name,parameters,returns,clauses,body}
+        Method{modifiers,name,parameters,returns,clauses,body}
     }
 }
 
-impl From<MethodDecl> for Node {
-    fn from(d: MethodDecl) -> Self { Node::MethodDecl(d) }
+impl From<Method> for Node {
+    fn from(d: Method) -> Self { Node::MethodDecl(d) }
 }
 
 // =============================================================================

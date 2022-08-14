@@ -101,7 +101,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	}
     }
 
-    pub fn parse_decl_function(&'c mut self, modifiers: Vec<Modifier>) -> Result<'a,Decl> {
+    pub fn parse_decl_function(&'c mut self, modifiers: Vec<decl::Modifier>) -> Result<'a,Decl> {
 	// "function"
 	self.snap(TokenType::Function)?;
 	let (name,params,returns,clauses) = self.parse_signature()?;
@@ -109,12 +109,12 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::from(FunctionDecl::new(modifiers,name,params,returns,clauses,body));
+        let n = Node::from(decl::Function::new(modifiers,name,params,returns,clauses,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }
 
-    pub fn parse_decl_method(&'c mut self, modifiers: Vec<Modifier>) -> Result<'a,Decl> {
+    pub fn parse_decl_method(&'c mut self, modifiers: Vec<decl::Modifier>) -> Result<'a,Decl> {
 	// "function"
 	self.snap(TokenType::Method)?;
         let (name,params,returns,clauses) = self.parse_signature()?;
@@ -122,7 +122,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         self.match_line_end()?;
 	let body = self.parse_stmt_block(&"")?;
 	// Construct node
-        let n = Node::from(MethodDecl::new(modifiers,name,params,returns,clauses,body));
+        let n = Node::from(decl::Method::new(modifiers,name,params,returns,clauses,body));
         // Done
         Ok(Decl::new(self.ast,n))
     }
@@ -146,7 +146,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// Parse the signature of a function, method or property.  Since
     /// this is common to all three, we abstract it here.
     pub fn parse_signature(&'c mut self) ->
-        Result<'a,(Name,Vec<Parameter>,Vec<Parameter>,Vec<Clause>)> {
+        Result<'a,(Name,Vec<decl::Parameter>,Vec<decl::Parameter>,Vec<decl::Clause>)> {
 	    let name = self.parse_identifier()?;
 	    let params = self.parse_decl_parameters()?;
             let returns = if self.lookahead(TokenType::MinusGreater) {
@@ -171,7 +171,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// represents the set of natural numbers (i.e the non-negative
     /// integers). Type declarations may also have modifiers, such as
     /// `public` and `private`.
-    pub fn parse_decl_type(&'c mut self,  modifiers: Vec<Modifier>) -> Result<'a,Decl> {
+    pub fn parse_decl_type(&'c mut self,  modifiers: Vec<decl::Modifier>) -> Result<'a,Decl> {
 	// "type"
 	let start = self.snap(TokenType::Type)?;
 	let name = self.parse_identifier()?;
@@ -186,12 +186,12 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	// Apply source map
 	//let attr = (self.mapper)(slice);
 	// Done
-	Ok(Decl::new(self.ast,Node::from(TypeDecl::new(modifiers,name,typ_e))))
+	Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,typ_e))))
     }
 
     /// Parse a list of parameter declarations
-    pub fn parse_decl_parameters(&mut self) -> Result<'a,Vec<Parameter>> {
-    	let mut params : Vec<Parameter> = vec![];
+    pub fn parse_decl_parameters(&mut self) -> Result<'a,Vec<decl::Parameter>> {
+    	let mut params : Vec<decl::Parameter> = vec![];
         // Skip any preceeding gap
         self.skip_gap();
     	// "("
@@ -208,7 +208,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	    // Identifier
     	    let f_name = self.parse_identifier()?;
     	    //
-    	    params.push(Parameter{declared:f_type,name:f_name});
+    	    params.push(decl::Parameter{declared:f_type,name:f_name});
     	}
     	// Done
     	Ok(params)
@@ -217,20 +217,20 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     /// Parse a list of return declarations.  These are essentially
     /// identical to parameters except, at the moment, they can be
     /// "anonymous".
-    pub fn parse_decl_returns(&mut self) -> Result<'a,Vec<Parameter>> {
+    pub fn parse_decl_returns(&mut self) -> Result<'a,Vec<decl::Parameter>> {
         // Skip any preceeding gap
         self.skip_gap();
         //
         if self.matches(TokenType::LeftBrace).is_ok() {
             self.parse_decl_parameters()
         } else {
-    	    let mut params : Vec<Parameter> = vec![];
+    	    let mut params : Vec<decl::Parameter> = vec![];
             // Type
     	    let f_type = self.parse_type()?;
     	    // Anonymous identifier
     	    let f_name = Name::new(self.ast,&"$");
     	    //
-    	    params.push(Parameter{declared:f_type,name:f_name});
+    	    params.push(decl::Parameter{declared:f_type,name:f_name});
             // Done
             Ok(params)
         }
@@ -238,7 +238,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     /// Parse modifiers for a given declaration, such as `public`,
     /// `private` or `export`.
-    pub fn parse_decl_modifiers(&mut self) -> Result<'a,Vec<Modifier>> {
+    pub fn parse_decl_modifiers(&mut self) -> Result<'a,Vec<decl::Modifier>> {
         let mut mods = vec![];
         //
         loop {
@@ -249,23 +249,23 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	    match lookahead.kind {
                 TokenType::Export => {
                     self.snap(TokenType::Export);
-                    mods.push(Modifier::Export);
+                    mods.push(decl::Modifier::Export);
                 }
                 TokenType::Final => {
                     self.snap(TokenType::Final);
-                    mods.push(Modifier::Final);
+                    mods.push(decl::Modifier::Final);
                 }
                 TokenType::Native => {
                     self.snap(TokenType::Native);
-                    mods.push(Modifier::Native);
+                    mods.push(decl::Modifier::Native);
                 }
                 TokenType::Private => {
                     self.snap(TokenType::Private);
-                    mods.push(Modifier::Private);
+                    mods.push(decl::Modifier::Private);
                 }
                 TokenType::Public => {
                     self.snap(TokenType::Public);
-                    mods.push(Modifier::Public);
+                    mods.push(decl::Modifier::Public);
                 }
                 _ => {
                     return Ok(mods);
@@ -278,7 +278,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     // Specification clauses
     // =========================================================================
 
-    pub fn parse_spec_clauses(&mut self) -> Result<'a,Vec<Clause>> {
+    pub fn parse_spec_clauses(&mut self) -> Result<'a,Vec<decl::Clause>> {
         let mut clauses = Vec::new();
         // Keep going until we meet a colon
         while !self.lookahead(TokenType::Colon) {
@@ -288,7 +288,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         Ok(clauses)
     }
 
-    pub fn parse_spec_clause(&mut self)  -> Result<'a,Clause> {
+    pub fn parse_spec_clause(&mut self)  -> Result<'a,decl::Clause> {
         // Skip any preceeding gap
         self.skip_whitespace()?;
         // Decide what type of clause (if any) we have
@@ -297,11 +297,11 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         match lookahead.kind {
             TokenType::Requires => {
                 self.snap(TokenType::Requires);
-    	        Ok(Clause::Requires(self.parse_expr()?))
+    	        Ok(decl::Clause::Requires(self.parse_expr()?))
             }
             TokenType::Ensures => {
                 self.snap(TokenType::Ensures);
-    	        Ok(Clause::Ensures(self.parse_expr()?))
+    	        Ok(decl::Clause::Ensures(self.parse_expr()?))
             }
             _ => {
                 // Nothing else is the start of a valid statement.

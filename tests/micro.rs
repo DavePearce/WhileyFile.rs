@@ -1,5 +1,6 @@
 use whiley_file::WhileyFile;
 use whiley_file::ast::*;
+use whiley_file::ast::decl::{Clause,Parameter};
 use whiley_file::parser::Parser;
 
 // ======================================================
@@ -267,7 +268,7 @@ fn test_function_10() {
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
+    assert_eq!(ast.get(3),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
 #[test]
@@ -276,7 +277,7 @@ fn test_function_11() {
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
+    assert_eq!(ast.get(3),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
 #[test]
@@ -285,7 +286,7 @@ fn test_function_12() {
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
+    assert_eq!(ast.get(3),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
 
@@ -295,7 +296,7 @@ fn test_function_13() {
     check_name(ast.get(0),"f");
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(3),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
+    assert_eq!(ast.get(3),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(2))));
 }
 
 #[test]
@@ -307,7 +308,7 @@ fn test_function_14() {
     assert_eq!(ast.get(3),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(4),&Node::from(stmt::Block(vec![Stmt(3)])));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
-    assert_eq!(ast.get(5),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],vec![],Stmt(4))));
+    assert_eq!(ast.get(5),&Node::from(decl::Function::new(vec![],Name(0),params,vec![],vec![],Stmt(4))));
 }
 
 #[test]
@@ -324,7 +325,7 @@ fn test_function_15() {
     assert_eq!(ast.get(8),&Node::from(stmt::Block(vec![Stmt(7)])));
     let params = vec![Parameter{declared:Type(1),name:Name(2)},Parameter{declared:Type(3),name:Name(4)}];
     let returns = vec![Parameter{declared:Type(5),name:Name(6)}];
-    assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,returns,vec![],Stmt(8))));
+    assert_eq!(ast.get(9),&Node::from(decl::Function::new(vec![],Name(0),params,returns,vec![],Stmt(8))));
 }
 
 #[test]
@@ -334,7 +335,7 @@ fn test_function_16() {
     assert_eq!(ast.get(1),&Node::from(LineComment("// line comment".to_string())));
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -344,7 +345,7 @@ fn test_function_17() {
     check_name(ast.get(1),"f");
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -354,7 +355,7 @@ fn test_function_18() {
     assert_eq!(ast.get(1),&Node::from(BlockComment("/* block comment */".to_string())));
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -364,7 +365,7 @@ fn test_function_19() {
     check_name(ast.get(1),"f");
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(1),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -374,7 +375,7 @@ fn test_function_20() {
     assert_eq!(ast.get(1),&Node::from(LineComment("// line comment".to_string())));
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -384,7 +385,7 @@ fn test_function_21() {
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(LineComment("// line comment".to_string())));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -394,7 +395,7 @@ fn test_function_22() {
     assert_eq!(ast.get(1),&Node::from(BlockComment("/** line comment */".to_string())));
     assert_eq!(ast.get(2),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(2)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -404,7 +405,7 @@ fn test_function_23() {
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line comment */".to_string())));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -414,7 +415,7 @@ fn test_function_24() {
     assert_eq!(ast.get(1),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line\n comment */".to_string())));
     assert_eq!(ast.get(3),&Node::from(stmt::Block(vec![Stmt(1)])));
-    assert_eq!(ast.get(4),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
+    assert_eq!(ast.get(4),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(3))));
 }
 
 #[test]
@@ -425,7 +426,7 @@ fn test_function_25() {
     assert_eq!(ast.get(2),&Node::from(BlockComment("/* line\n comment */".to_string())));
     assert_eq!(ast.get(3),&Node::from(stmt::Skip()));
     assert_eq!(ast.get(4),&Node::from(stmt::Block(vec![Stmt(1),Stmt(3)])));
-    assert_eq!(ast.get(5),&Node::from(FunctionDecl::new(vec![],Name(0),vec![],vec![],vec![],Stmt(4))));
+    assert_eq!(ast.get(5),&Node::from(decl::Function::new(vec![],Name(0),vec![],vec![],vec![],Stmt(4))));
 }
 
 #[test]
@@ -436,7 +437,7 @@ fn test_function_26() {
     assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThan,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Requires(Expr(6))];
-    assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
+    assert_eq!(ast.get(9),&Node::from(decl::Function::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
 }
 
 #[test]
@@ -447,7 +448,7 @@ fn test_function_27() {
     assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::GreaterThan,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Ensures(Expr(6))];
-    assert_eq!(ast.get(9),&Node::from(FunctionDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
+    assert_eq!(ast.get(9),&Node::from(decl::Function::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
 }
 
 #[test]
@@ -487,7 +488,7 @@ fn test_method_04() {
     assert_eq!(ast.get(6),&Node::from(expr::Binary(BinOp::LessThanOrEquals,Expr(4),Expr(5))));
     let params = vec![Parameter{declared:Type(1),name:Name(2)}];
     let clauses = vec![Clause::Requires(Expr(6))];
-    assert_eq!(ast.get(9),&Node::from(MethodDecl::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
+    assert_eq!(ast.get(9),&Node::from(decl::Method::new(vec![],Name(0),params,vec![],clauses,Stmt(8))));
 }
 
 // ======================================================
