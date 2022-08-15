@@ -47,10 +47,14 @@ pub enum Node {
     ArrayAccessExpr(expr::ArrayAccess),
     ArrayInitialiserExpr(expr::ArrayInitialiser),
     ArrayLengthExpr(expr::ArrayLength),
-    BoolExpr(expr::Bool),
     BinaryExpr(expr::Binary),
-    IntExpr(expr::Int),
+    InvokeExpr(expr::Invoke),
     VarAccessExpr(expr::VarAccess),
+    // Literals
+    BoolLiteral(expr::BoolLiteral),
+    CharLiteral(expr::CharLiteral),
+    IntLiteral(expr::IntLiteral),
+    StringLiteral(expr::StringLiteral),
     // Types
     ArrayType(types::Array),
     BoolType(types::Bool),

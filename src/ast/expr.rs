@@ -24,10 +24,13 @@ impl Expr {
 	    Node::ArrayAccessExpr(_) => true,
 	    Node::ArrayInitialiserExpr(_) => true,
 	    Node::ArrayLengthExpr(_) => true,
-	    Node::BoolExpr(_) => true,
+	    Node::BoolLiteral(_) => true,
+	    Node::CharLiteral(_) => true,
 	    Node::BinaryExpr(_) => true,
-	    Node::IntExpr(_) => true,
+	    Node::IntLiteral(_) => true,
+	    Node::InvokeExpr(_) => true,
 	    Node::VarAccessExpr(_) => true,
+	    Node::StringLiteral(_) => true,
             _ => false
         }
     }
@@ -42,17 +45,31 @@ impl Into<usize> for Expr {
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct Bool(pub bool);
+pub struct BoolLiteral(pub bool);
 
-impl From<Bool> for Node {
-    fn from(s: Bool) -> Self { Node::BoolExpr(s) }
+impl From<BoolLiteral> for Node {
+    fn from(s: BoolLiteral) -> Self { Node::BoolLiteral(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct Int(pub i32);
+pub struct CharLiteral(pub char);
 
-impl From<Int> for Node {
-    fn from(s: Int) -> Self { Node::IntExpr(s) }
+impl From<CharLiteral> for Node {
+    fn from(s: CharLiteral) -> Self { Node::CharLiteral(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct IntLiteral(pub i32);
+
+impl From<IntLiteral> for Node {
+    fn from(s: IntLiteral) -> Self { Node::IntLiteral(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct StringLiteral(pub String);
+
+impl From<StringLiteral> for Node {
+    fn from(s: StringLiteral) -> Self { Node::StringLiteral(s) }
 }
 
 // =============================================================================
@@ -64,6 +81,17 @@ pub struct VarAccess(pub Name);
 
 impl From<VarAccess> for Node {
     fn from(s: VarAccess) -> Self { Node::VarAccessExpr(s) }
+}
+
+// =============================================================================
+// Invoke
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Invoke(pub Expr, pub Vec<Expr>);
+
+impl From<Invoke> for Node {
+    fn from(s: Invoke) -> Self { Node::InvokeExpr(s) }
 }
 
 // =============================================================================

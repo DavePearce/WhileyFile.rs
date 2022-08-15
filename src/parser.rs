@@ -512,9 +512,8 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let lookahead = self.lexer.peek();
     	// FIXME: managed nested operators
         expr = match lookahead.kind {
-            TokenType::LeftSquare => {
-                self.parse_expr_arrayaccess(expr)?
-            }
+            TokenType::LeftSquare => self.parse_expr_arrayaccess(expr)?,
+            TokenType::LeftBrace => self.parse_expr_invoke(expr)?,
             _ => expr
         };
         // Done
@@ -528,6 +527,18 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         Ok(Expr::new(self.ast,Node::from(expr::ArrayAccess(src,index))))
     }
 
+    pub fn parse_expr_invoke(&mut self, src: Expr) -> Result<'a,Expr> {
+        // "("
+    	self.snap(TokenType::LeftBrace)?;
+    	// Expr, Expr, Expr, ...
+    	let exprs = self.parse_terminated_exprs(TokenType::RightBrace)?;
+    	// ")"
+    	self.snap(TokenType::RightBrace)?;
+    	//
+    	Ok(Expr::new(self.ast,Node::from(expr::Invoke(src,exprs))))
+    }
+
+
     pub fn parse_expr_term(&mut self) -> Result<'a,Expr> {
         // Skip whitespace
         self.skip_whitespace();
@@ -535,48 +546,21 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	let lookahead = self.lexer.peek();
     	//
     	let expr = match lookahead.kind {
-    	    TokenType::Bar => {
-    		self.parse_expr_arraylength()?
-    	    }
-    	    TokenType::False => {
-    		self.lexer.next();
-    		Expr::new(self.ast,Node::from(expr::Bool(false)))
-    	    }
-	    TokenType::Identifier => {
-		let n = self.parse_identifier();
-		Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())))
-	    }
-    	    TokenType::Integer => {
-    	    	self.lexer.next();
-		Expr::new(self.ast,Node::from(expr::Int(lookahead.as_int())))
-    	    }
-    	    TokenType::LeftBrace => {
-    	    	self.parse_expr_bracketed()?
-    	    }
-            TokenType::LeftSquare => {
-    	    	self.parse_expr_arrayinitialiser()?
-    	    }
-    	    TokenType::True => {
-    		self.lexer.next();
-    		Expr::new(self.ast,Node::from(expr::Bool(true)))
-    	    }
+    	    TokenType::Bar => self.parse_expr_arraylength()?,
+    	    TokenType::Character => self.parse_literal_char()?,
+    	    TokenType::False => self.parse_literal_bool()?,
+	    TokenType::Identifier => self.parse_expr_varaccess()?,
+    	    TokenType::Integer => self.parse_literal_int()?,
+    	    TokenType::LeftBrace => self.parse_expr_bracketed()?,
+            TokenType::LeftSquare => self.parse_expr_arrayinitialiser()?,
+    	    TokenType::True => self.parse_literal_bool()?,
+            TokenType::String => self.parse_literal_string()?,
     	    _ => {
     		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
     	    }
     	};
     	//
     	Ok(expr)
-    }
-
-    pub fn parse_expr_arraylength(&mut self) -> Result<'a,Expr> {
-        // "|"
-    	self.snap(TokenType::Bar)?;
-    	// Expr
-    	let expr = self.parse_expr()?;
-    	// "|"
-    	self.snap(TokenType::Bar)?;
-    	//
-    	Ok(Expr::new(self.ast,Node::from(expr::ArrayLength(expr))))
     }
 
     pub fn parse_expr_arrayinitialiser(&mut self) -> Result<'a,Expr> {
@@ -590,6 +574,17 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	Ok(Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs))))
     }
 
+    pub fn parse_expr_arraylength(&mut self) -> Result<'a,Expr> {
+        // "|"
+    	self.snap(TokenType::Bar)?;
+    	// Expr
+    	let expr = self.parse_expr()?;
+    	// "|"
+    	self.snap(TokenType::Bar)?;
+    	//
+    	Ok(Expr::new(self.ast,Node::from(expr::ArrayLength(expr))))
+    }
+
     pub fn parse_expr_bracketed(&mut self) -> Result<'a,Expr> {
     	// "("
     	self.snap(TokenType::LeftBrace)?;
@@ -599,6 +594,41 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     	self.snap(TokenType::RightBrace)?;
     	//
     	expr
+    }
+
+    pub fn parse_expr_varaccess(&mut self) -> Result<'a,Expr> {
+	let n = self.parse_identifier();
+	Ok(Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap()))))
+    }
+
+    pub fn parse_literal_bool(&mut self) -> Result<'a,Expr> {
+        let tok = self.snap_any(&[TokenType::True,TokenType::False])?;
+        let expr = match tok.kind {
+            TokenType::False => Expr::new(self.ast,Node::from(expr::BoolLiteral(false))),
+            TokenType::True => Expr::new(self.ast,Node::from(expr::BoolLiteral(true))),
+            _ => {
+                panic!("deadcode reached");
+            }
+        };
+        Ok(expr)
+    }
+
+    pub fn parse_literal_char(&mut self) -> Result<'a,Expr> {
+        let tok = self.snap(TokenType::Character)?;
+        let val = tok.as_char();
+    	Ok(Expr::new(self.ast,Node::from(expr::CharLiteral(val))))
+    }
+
+    pub fn parse_literal_int(&mut self) -> Result<'a,Expr> {
+        let tok = self.snap(TokenType::Integer)?;
+        let val = tok.as_int();
+    	Ok(Expr::new(self.ast,Node::from(expr::IntLiteral(val))))
+    }
+
+    pub fn parse_literal_string(&mut self) -> Result<'a,Expr> {
+        let tok = self.snap(TokenType::String)?;
+        let contents = tok.content.to_string();
+    	Ok(Expr::new(self.ast,Node::from(expr::StringLiteral(contents))))
     }
 
     /// Parse a sequence of zero or more expressions separated by
@@ -738,6 +768,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             // Nominals
             TokenType::Identifier => {
                 // TODO: manage qualified names here.
+                // TODO: distinguish static / local names.
                 let n = Name::new(self.ast,&lookahead.content);
                 Node::from(types::Nominal(n))
             }

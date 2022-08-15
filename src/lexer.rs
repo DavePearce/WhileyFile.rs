@@ -16,6 +16,7 @@ pub enum TokenType {
     Bool,
     Break,
     Case,
+    Character,
     Colon,
     Comma,
     Continue,
@@ -69,6 +70,7 @@ pub enum TokenType {
     ShreakEquals,
     SemiColon,
     Skip,
+    String,
     Switch,
     Star,
     True,
@@ -104,8 +106,20 @@ impl<'a> Token<'a> {
 	return self.content.parse().unwrap();
     }
 
+    /// Ghet the character payload associated with this token,
+    /// assuming it has integer kind.
+    pub fn as_char(&self) -> char {
+	// Can only call this method on character tokens.
+        assert!(self.kind == TokenType::Character);
+        // TODO: fix this!
+        self.content[1..2].chars().next().unwrap()
+    }
+
     /// Get the string payload associated with this token.
     pub fn as_string(&self) -> String {
+	// Can only call this method on string tokens.
+	assert!(self.kind == TokenType::String);
+        // TODO: fix this!
 	return self.content.to_string();
     }
 
@@ -215,6 +229,10 @@ impl<'a> Lexer<'a> {
             self.scan_integer(start)
         } else if is_identifier_start(ch)  {
             self.scan_identifier_or_keyword(start)
+        } else if ch == '\'' {
+            self.scan_character(start)
+        } else if ch == '"' {
+            self.scan_string(start)
         } else {
             self.scan_operator(start,ch)
         }
@@ -431,6 +449,30 @@ impl<'a> Lexer<'a> {
             }
         };
         let content = &self.input[start..end];
+        Token{kind,start,content}
+    }
+
+    /// Scan contents of a character literal, whilst decoding any escaped characters.
+    fn scan_character(&mut self, start: usize) -> Token<'a> {
+        let kind = TokenType::Character;
+        // Skip initial quote
+        self.chars.next();
+        let end = self.scan_whilst(|c| c != '\'');
+        // Skip final quote
+        self.chars.next();
+        let content = &self.input[start..end+1];
+        Token{kind,start,content}
+    }
+
+    /// Scan contents of a string, whilst decoding any escaped characters.
+    fn scan_string(&mut self, start: usize) -> Token<'a> {
+        let kind = TokenType::String;
+        // Skip initial quote
+        self.chars.next();
+        let end = self.scan_whilst(|c| c != '\"');
+        // Skip final quote
+        self.chars.next();
+        let content = &self.input[start..end+1];
         Token{kind,start,content}
     }
 
