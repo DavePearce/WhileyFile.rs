@@ -408,11 +408,12 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     pub fn parse_stmt_assert(&mut self) -> Result<'a,Stmt> {
     	// "assert"
-    	self.snap(TokenType::Assert)?;
+    	let tok = self.snap(TokenType::Assert)?;
     	// Expr
     	let expr = self.parse_expr()?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(stmt::Assert(expr))))
+    	let stmt = Stmt::new(self.ast,Node::from(stmt::Assert(expr)));
+        self.finalise(stmt,tok)
     }
 
     pub fn parse_stmt_assume(&mut self) -> Result<'a,Stmt> {
@@ -426,7 +427,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 
     pub fn parse_stmt_return(&mut self) -> Result<'a,Stmt> {
     	// "return"
-    	self.snap(TokenType::Return)?;
+    	let tok = self.snap(TokenType::Return)?;
     	//
         self.skip_linespace();
         // See whether an expression follows
@@ -438,14 +439,16 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
             }
         };
         // Done
-    	Ok(Stmt::new(self.ast,stmt))
+    	let stmt = Stmt::new(self.ast,stmt);
+        self.finalise(stmt,tok)
     }
 
     pub fn parse_stmt_skip(&mut self) -> Result<'a,Stmt> {
     	// "skip"
-    	self.snap(TokenType::Skip)?;
+    	let tok = self.snap(TokenType::Skip)?;
     	// Done
-    	Ok(Stmt::new(self.ast,Node::from(stmt::Skip())))
+    	let stmt = Stmt::new(self.ast,Node::from(stmt::Skip()));
+        self.finalise(stmt,tok)
     }
 
     pub fn parse_vardecl_stmt(&mut self) -> Result<'a,Stmt> {
@@ -508,7 +511,6 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     pub fn parse_expr_postfix(&mut self) -> Result<'a,Expr> {
         let mut expr = self.parse_expr_term()?;
         // Check for postfix unary operator.
-        //
     	let lookahead = self.lexer.peek();
     	// FIXME: managed nested operators
         expr = match lookahead.kind {
@@ -521,21 +523,25 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     }
 
     pub fn parse_expr_arrayaccess(&mut self, src: Expr) -> Result<'a,Expr> {
-        self.snap(TokenType::LeftSquare)?;
+        let tok = self.snap(TokenType::LeftSquare)?;
         let index = self.parse_expr()?;
         self.snap(TokenType::RightSquare)?;
-        Ok(Expr::new(self.ast,Node::from(expr::ArrayAccess(src,index))))
+        let expr = Expr::new(self.ast,Node::from(expr::ArrayAccess(src,index)));
+        // FIXME: wrong because tok is not first.
+        self.finalise(expr,tok)
     }
 
     pub fn parse_expr_invoke(&mut self, src: Expr) -> Result<'a,Expr> {
         // "("
-    	self.snap(TokenType::LeftBrace)?;
+    	let tok = self.snap(TokenType::LeftBrace)?;
     	// Expr, Expr, Expr, ...
     	let exprs = self.parse_terminated_exprs(TokenType::RightBrace)?;
     	// ")"
     	self.snap(TokenType::RightBrace)?;
     	//
-    	Ok(Expr::new(self.ast,Node::from(expr::Invoke(src,exprs))))
+    	let expr = Expr::new(self.ast,Node::from(expr::Invoke(src,exprs)));
+        // FIXME: wrong because tok is not first.
+        self.finalise(expr,tok)
     }
 
 
@@ -543,6 +549,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
         // Skip whitespace
         self.skip_whitespace();
         //
+        let start = self.lexer.offset();
     	let lookahead = self.lexer.peek();
     	//
     	let expr = match lookahead.kind {
@@ -559,30 +566,32 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
     	    }
     	};
-    	//
-    	Ok(expr)
+        // Done
+        self.finalise(expr,lookahead)
     }
 
     pub fn parse_expr_arrayinitialiser(&mut self) -> Result<'a,Expr> {
         // "["
-    	self.snap(TokenType::LeftSquare)?;
+    	let tok = self.snap(TokenType::LeftSquare)?;
     	// Expr, Expr, Expr, ...
     	let exprs = self.parse_terminated_exprs(TokenType::RightSquare)?;
     	// "]"
     	self.snap(TokenType::RightSquare)?;
     	//
-    	Ok(Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs))))
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs)));
+        self.finalise(expr,tok)
     }
 
     pub fn parse_expr_arraylength(&mut self) -> Result<'a,Expr> {
         // "|"
-    	self.snap(TokenType::Bar)?;
+    	let tok = self.snap(TokenType::Bar)?;
     	// Expr
     	let expr = self.parse_expr()?;
     	// "|"
     	self.snap(TokenType::Bar)?;
     	//
-    	Ok(Expr::new(self.ast,Node::from(expr::ArrayLength(expr))))
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayLength(expr)));
+        self.finalise(expr,tok)
     }
 
     pub fn parse_expr_bracketed(&mut self) -> Result<'a,Expr> {
@@ -597,8 +606,10 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     }
 
     pub fn parse_expr_varaccess(&mut self) -> Result<'a,Expr> {
+        let tok = self.lexer.peek();
 	let n = self.parse_identifier();
-	Ok(Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap()))))
+	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
+        self.finalise(expr,tok)
     }
 
     pub fn parse_literal_bool(&mut self) -> Result<'a,Expr> {
@@ -610,25 +621,29 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
                 panic!("deadcode reached");
             }
         };
-        Ok(expr)
+        // Done
+        self.finalise(expr,tok)
     }
 
     pub fn parse_literal_char(&mut self) -> Result<'a,Expr> {
         let tok = self.snap(TokenType::Character)?;
         let val = tok.as_char();
-    	Ok(Expr::new(self.ast,Node::from(expr::CharLiteral(val))))
+    	let expr = Expr::new(self.ast,Node::from(expr::CharLiteral(val)));
+        self.finalise(expr,tok)
     }
 
     pub fn parse_literal_int(&mut self) -> Result<'a,Expr> {
         let tok = self.snap(TokenType::Integer)?;
         let val = tok.as_int();
-    	Ok(Expr::new(self.ast,Node::from(expr::IntLiteral(val))))
+        let expr = Expr::new(self.ast,Node::from(expr::IntLiteral(val)));
+        self.finalise(expr,tok)
     }
 
     pub fn parse_literal_string(&mut self) -> Result<'a,Expr> {
         let tok = self.snap(TokenType::String)?;
         let contents = tok.content.to_string();
-    	Ok(Expr::new(self.ast,Node::from(expr::StringLiteral(contents))))
+        let expr = Expr::new(self.ast,Node::from(expr::StringLiteral(contents)));
+        self.finalise(expr,tok)
     }
 
     /// Parse a sequence of zero or more expressions separated by
@@ -759,7 +774,7 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     pub fn parse_type_base(&'c mut self) -> Result<'a,Type> {
 	let lookahead = self.lexer.peek();
 	// Look at what we've got!
-	let typ_e = match lookahead.kind {
+	let node = match lookahead.kind {
 	    TokenType::Null => Node::from(types::Null()),
 	    TokenType::Bool => Node::from(types::Bool()),
 	    TokenType::Int(s) => Node::from(types::Int(true,s)),
@@ -778,8 +793,9 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
 	};
 	// Move over it
 	self.lexer.next();
-	//
-	Ok(Type::new(self.ast,Node::from(typ_e)))
+        let typ_e = Type::new(self.ast,node);
+        // Done
+        self.finalise(typ_e,lookahead)
     }
 
     // =========================================================================
@@ -797,11 +813,18 @@ where 'a :'b, 'a:'c, F : FnMut(usize,&'a str) {
     // Helpers
     // =========================================================================
 
-    // fn source_attr(&self, first : Token<'a>, last: Token<'a>) -> Attributes {
-    // 	let start = first.start;
-    // 	let end = last.end();
-    // 	Attributes{start,end}
-    // }
+    /// Finalise a given node after its creation.  Amongst other
+    /// things, this registers its source mappiung (i.e. all
+    /// characters from a given token upto the current position).
+    fn finalise<T:Copy+Into<usize>>(&mut self, node:T, token: Token) -> Result<'a,T> {
+        let end = self.lexer.offset();
+        // Extract slice
+        let slice = &self.lexer.input[token.start .. end];
+        // Register the mapping
+        (self.mapper)(node.into(),slice);
+        //
+        Ok(node)
+    }
 
     /// If the next token is a gap, just skip over it.
     fn skip_gap(&mut self) {

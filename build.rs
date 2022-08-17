@@ -17,7 +17,7 @@ fn main() {
         let p = e.as_ref().unwrap().path();
         let n = p.file_stem().unwrap().to_str().unwrap();
         // FIXME: only considering one test (for now).
-        if n == "000001" && p.extension().unwrap() == "test" {
+        if n.starts_with("000001") && p.extension().unwrap() == "test" {
             write!(
                 f,
                 "

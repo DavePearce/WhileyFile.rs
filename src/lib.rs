@@ -43,7 +43,9 @@ pub type Result<'a,T> = result::Result<T, Error<'a>>;
 // ===============================================================
 
 /// A dummy source mapper which does nothing (FOR NOW).
-fn source_mapper<'a>(_: usize, _: &'a str) { }
+fn source_mapper<'a>(_: usize, txt: &'a str) {
+    // nothing!
+}
 
 pub struct WhileyFile {
     pub ast : Box<AbstractSyntaxTree>
