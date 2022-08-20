@@ -1,12 +1,14 @@
 pub mod ast;
 pub mod lexer;
 pub mod parser;
+pub mod source_map;
 
 use std::result;
 
 use crate::ast::AbstractSyntaxTree;
 use crate::lexer::{Token,TokenType};
 use crate::parser::Parser;
+use crate::source_map::SourceMap;
 
 // =================================================================
 // Error
@@ -42,19 +44,16 @@ pub type Result<'a,T> = result::Result<T, Error<'a>>;
 // Whiley File
 // ===============================================================
 
-/// A dummy source mapper which does nothing (FOR NOW).
-fn source_mapper<'a>(_: usize, txt: &'a str) {
-    // nothing!
-}
-
 pub struct WhileyFile {
-    pub ast : Box<AbstractSyntaxTree>
+    pub ast : Box<AbstractSyntaxTree>,
+    //pub source_map : HashMap<usize,Highlight>	
 }
 
 impl WhileyFile {
     pub fn from_str<'a>(input: &'a str) -> Result<'a,WhileyFile> {
         let mut ast = AbstractSyntaxTree::new();
-	let mut parser = Parser::new(input, &mut ast, source_mapper);
+	let mut mapper = SourceMap::new(input);
+	let mut parser = Parser::new(input, &mut ast, |i,s| mapper.map(i,s));
         let r = parser.parse();
 	// Parse entire file
 	match r {

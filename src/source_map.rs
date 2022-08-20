@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Clone,Debug,PartialEq)]
 pub struct SourceMap<'a> {
     pub input : &'a str,
-    pub map : HashMap<usize,&'a str>
+    pub map : HashMap<usize,Highlight>
 }
 
 impl<'a> SourceMap<'a> {
@@ -18,8 +18,8 @@ impl<'a> SourceMap<'a> {
     /// subsequently used to identify the corresponding AST syntactic
     /// element.
     pub fn map(&mut self, index: usize, element: &'a str) {
-	// // Store details
-	self.map.insert(index,element);
+	// Store details
+	self.map.insert(index,Highlight{start:0,end:0});
     }
 
     pub fn get_highlight(&self, index: usize) -> Highlight {
@@ -27,26 +27,22 @@ impl<'a> SourceMap<'a> {
 	let val = self.map.get(&index);
 	// See what we got
 	match val {
-	    Some(s) => {
-		Highlight{line: s, start:0, end: 1}
-	    }
-	    None => {
-		EMPTY_HIGHLIGHT
-	    }
+	    Some(s) => *s,
+	    None => EMPTY_HIGHLIGHT
 	}
     }
 }
 
 /// Provides a useful package for reporting error messages.
-pub struct Highlight<'a> {
-    pub line : &'a str,
+#[derive(Copy,Clone,Debug,PartialEq)]
+pub struct Highlight {
     pub start: usize,
     pub end: usize
 }
 
 /// A dummy highlight to use when (for whatever reason) the necessary
 /// source information for a given node is missing.
-pub const EMPTY_HIGHLIGHT : Highlight<'static> = Highlight{ line: "", start: 0, end: 0 };
+pub const EMPTY_HIGHLIGHT : Highlight = Highlight{ start: 0, end: 0 };
 
 /**
  * Calculate the offset of one slice from another.  Specifically,
