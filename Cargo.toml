@@ -11,6 +11,7 @@ repository = "https://github.com/DavePearce/WhileyFile.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+delta_inc="0.3.0"
 syntactic_heap = "0.3.1"
 
 [dev-dependencies]
