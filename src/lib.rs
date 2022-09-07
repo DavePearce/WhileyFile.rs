@@ -74,19 +74,19 @@ pub struct WhileyFile {
 
 impl WhileyFile {
     pub fn from_str<'a>(input: &'a str) -> Result<WhileyFile> {
-        // let mut ast = AbstractSyntaxTree::new();
+        let mut ast = AbstractSyntaxTree::new();
 	// let mut mapper = SourceMap::new(input);
-	// let mut parser = Parser::new(input, &mut ast, |i,s| mapper.map(i,s));
-        // let r = parser.parse();
-	// // Parse entire file
-	// match r {
-        //     Ok(()) => {
-	//         Ok(WhileyFile{ast:Box::new(ast)})
-        //     }
-        //     Err(e) => {
-        //         Err(e)
-        //     }
-        // }
-        todo!("fix me");
+	let mut parser = Parser::new(input, &mut ast);
+        let r = parser.parse();
+	// Parse entire file
+	match r {
+            Ok(()) => {
+	        Ok(WhileyFile{ast:Box::new(ast)})
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
+//        todo!("fix me");
     }
 }

@@ -74,8 +74,8 @@ pub enum Node {
 pub struct Name(pub usize);
 
 impl Name {
-    pub fn new(ast: &mut AbstractSyntaxTree, s : &str) -> Self {
-	let node = Node::Utf8(s.to_string());
+    pub fn new(ast: &mut AbstractSyntaxTree, s : String) -> Self {
+	let node = Node::Utf8(s);
         // Create new node
         let index = ast.push(node).raw_index();
         // Done

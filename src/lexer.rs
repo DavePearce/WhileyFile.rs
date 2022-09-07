@@ -144,58 +144,63 @@ fn scan_int_literal(input: &[char]) -> Result {
 /// Scan a keyword, which is simple identifier matching a predefined
 /// pattern.
 fn scan_keyword(input: &[char]) -> Result {
-    // Extract keyword identifier (if applicable)
-    let r = scan_whilst(input, Token::Gap, |c| c.is_ascii_alphabetic())?;
-    // Attempt to match it
-    let t = match &input[r.range()] {
-	ASSERT => Token::Assert,
-	ASSUME => Token::Assume,
-	BOOL => Token::Bool,
-	BREAK => Token::Break,
-	CASE => Token::Case,
-	CONTINUE => Token::Continue,
-	DEFAULT => Token::Default,
-	DO => Token::Do,
-	DELETE => Token::Delete,
-	ELSE => Token::Else,
-        ENSURES => Token::Ensures,
-        EXPORT => Token::Export,
-	FAIL => Token::Fail,
-	FALSE => Token::False,
-	FOR => Token::For,
-        FINAL => Token::Final,
-        FUNCTION => Token::Function,
-        IF => Token::If,
-        IS => Token::Is,
-        INT => Token::Int(0),
-	I8 => Token::Int(8),
-	I16 => Token::Int(16),
-	I32 => Token::Int(32),
-	I64 => Token::Int(64),
-        METHOD => Token::Method,
-	NEW => Token::New,
-	NULL => Token::Null,
-	NATIVE => Token::Native,
-	PRIVATE => Token::Private,
-        PUBLIC => Token::Public,
-	RETURN => Token::Return,
-        REQUIRES => Token::Requires,
-	SKIP => Token::Skip,
-	SWITCH => Token::Switch,
-	TRUE => Token::True,
-	TYPE => Token::Type,
-        WHILE => Token::While,
-        UINT => Token::Uint(0),
-	U8 => Token::Uint(8),
-	U16 => Token::Uint(16),
-	U32 => Token::Uint(32),
-	U64 => Token::Uint(64),
-	VOID => Token::Void,
-	WHERE => Token::Where,
-        _ => { return Err(()); }
-    };
-    // Success!
-    Ok(Span::new(t,r.region.into()))
+    if input.len() == 0 || !is_identifier_start(input[0]) {
+        // Short circuit failure case.
+        return Err(())
+    } else {
+        // Extract keyword identifier (if applicable)
+        let r = scan_whilst(input, Token::Gap, is_identifier_middle)?;
+        // Attempt to match it
+        let t = match &input[r.range()] {
+	    ASSERT => Token::Assert,
+	    ASSUME => Token::Assume,
+	    BOOL => Token::Bool,
+	    BREAK => Token::Break,
+	    CASE => Token::Case,
+	    CONTINUE => Token::Continue,
+	    DEFAULT => Token::Default,
+	    DO => Token::Do,
+	    DELETE => Token::Delete,
+	    ELSE => Token::Else,
+            ENSURES => Token::Ensures,
+            EXPORT => Token::Export,
+	    FAIL => Token::Fail,
+	    FALSE => Token::False,
+	    FOR => Token::For,
+            FINAL => Token::Final,
+            FUNCTION => Token::Function,
+            IF => Token::If,
+            IS => Token::Is,
+            INT => Token::Int(0),
+	    I8 => Token::Int(8),
+	    I16 => Token::Int(16),
+	    I32 => Token::Int(32),
+	    I64 => Token::Int(64),
+            METHOD => Token::Method,
+	    NEW => Token::New,
+	    NULL => Token::Null,
+	    NATIVE => Token::Native,
+	    PRIVATE => Token::Private,
+            PUBLIC => Token::Public,
+	    RETURN => Token::Return,
+            REQUIRES => Token::Requires,
+	    SKIP => Token::Skip,
+	    SWITCH => Token::Switch,
+	    TRUE => Token::True,
+	    TYPE => Token::Type,
+            WHILE => Token::While,
+            UINT => Token::Uint(0),
+	    U8 => Token::Uint(8),
+	    U16 => Token::Uint(16),
+	    U32 => Token::Uint(32),
+	    U64 => Token::Uint(64),
+	    VOID => Token::Void,
+	    WHERE => Token::Where,
+            _ => { return Err(()); }
+        };
+        // Success!
+        Ok(Span::new(t,r.region.into()))
+    }
 }
 
 /// Scan an identifier which starts with an alpabetic character, or an
