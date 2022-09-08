@@ -537,7 +537,7 @@ fn test_assert_05() {
 }
 
 #[test]
-fn test_assert_06() {
+fn test_assert_06a() {
     let ast = check_parse("function f() -> ():\n assert true");
     assert_eq!(ast.get(1),&Node::from(expr::BoolLiteral(true)));
     assert_eq!(ast.get(2),&Node::from(stmt::Assert(Expr(1))));

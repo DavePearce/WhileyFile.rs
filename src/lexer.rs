@@ -1,4 +1,4 @@
-pub use delta_inc::lex::{SnapError,Span};
+pub use delta_inc::lex::{SnapError,Region,Span};
 use delta_inc::lex::{SnapResult,Scanner,TableTokenizer};
 use delta_inc::lex;
 
@@ -444,6 +444,22 @@ impl Lexer {
     /// Pass through request to underlying lexer
     pub fn snap_any(&mut self, kinds : &[Token]) -> SnapResult<Token> {
         self.lexer.snap_any(kinds)
+    }
+    /// Peek characters of next token.
+    pub fn peek_chars(&self) -> &[char] {
+        self.get(self.peek())
+    }
+    /// Match a given token type in the current stream without consuming it.
+    pub fn matches(&mut self, kind : Token) -> SnapResult<Token> {
+        // Peek at the next token
+	let lookahead = self.lexer.peek();
+	// Check it!
+	if lookahead.kind == kind {
+	    Ok(lookahead)
+	} else {
+	    // Reject
+	    Err(SnapError::Expected(kind,lookahead))
+	}
     }
 }
 

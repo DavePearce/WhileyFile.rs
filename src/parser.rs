@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::{Error,ErrorCode,Result};
-use crate::lexer::{Lexer,Span,Token};
+use crate::lexer::{Lexer,Region,Span,Token};
 use crate::ast::*;
 
 /// The parsing environment maps raw strings to on-tree names.
@@ -40,6 +40,10 @@ pub const BINARY_CONNECTIVES : &'static [ &'static [Token] ] = &[
     &LOGICAL_CONNECTIVES,
 ];
 
+/// Define the "empty ident" which is the root of all indentation
+/// within a file.
+const EMPTY_INDENT : Span<Token> = Span{kind:Token::Gap, region: Region{start:0,end:0}};
+
 // =========================================================================
 // Parser
 // =========================================================================
@@ -63,10 +67,10 @@ impl<'a> Parser<'a> {
     /// Parse all declarations
     pub fn parse(&mut self) -> Result< ()> {
         let mut decls = Vec::new();
-        self.skip_whitespace();
+        self.skip_whitespace()?;
         while !self.lexer.is_eof() {
             decls.push(self.parse_decl()?);
-            self.skip_whitespace();
+            self.skip_whitespace()?;
         }
         // Done
         Ok(())
@@ -87,11 +91,14 @@ impl<'a> Parser<'a> {
 	    Token::Type => {
 	        self.parse_decl_type(modifiers)
 	    }
-            // Token::Function => {
-            //     self.parse_decl_function(modifiers)
-            // }
-            // Token::Method => {
-            //     self.parse_decl_method(modifiers)
+            Token::Function => {
+                self.parse_decl_function(modifiers)
+            }
+            Token::Method => {
+                self.parse_decl_method(modifiers)
+            }
+            // Token::Property => {
+            //     self.parse_decl_property(modifiers)
             // }
 	    _ => {
                 // Temporary (for now).
@@ -100,64 +107,63 @@ impl<'a> Parser<'a> {
 	}
     }
 
-    // pub fn parse_decl_function(&'c mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
-    //     // "function"
-    //     self.snap(Token::Function)?;
-    //     let (name,params,returns,clauses) = self.parse_signature()?;
-    //     self.gap_snap(Token::Colon)?;
-    //     self.match_line_end()?;
-    //     let body = self.parse_stmt_block(&"")?;
-    //     // Construct node
-    //     let n = Node::from(decl::Function::new(modifiers,name,params,returns,clauses,body));
-    //     // Done
-    //     Ok(Decl::new(self.ast,n))
-    // }
+    pub fn parse_decl_function(&mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
+        // "function"
+        self.lexer.snap(Token::Function)?;
+        let (name,params,returns,clauses) = self.parse_signature()?;
+        self.gap_snap(Token::Colon)?;
+        self.match_line_end()?;
+        let body = self.parse_stmt_block(EMPTY_INDENT)?;
+        // Construct node
+        let n = Node::from(decl::Function::new(modifiers,name,params,returns,clauses,body));
+        // Done
+        Ok(Decl::new(self.ast,n))
+    }
 
-    // pub fn parse_decl_method(&'c mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
-    //     // "function"
-    //     self.snap(Token::Method)?;
-    //     let (name,params,returns,clauses) = self.parse_signature()?;
-    //     self.gap_snap(Token::Colon)?;
-    //     self.match_line_end()?;
-    //     let body = self.parse_stmt_block(&"")?;
-    //     // Construct node
-    //     let n = Node::from(decl::Method::new(modifiers,name,params,returns,clauses,body));
-    //     // Done
-    //     Ok(Decl::new(self.ast,n))
-    // }
+    pub fn parse_decl_method(&mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
+        // "function"
+        self.lexer.snap(Token::Method)?;
+        let (name,params,returns,clauses) = self.parse_signature()?;
+        self.gap_snap(Token::Colon)?;
+        self.match_line_end()?;
+        let body = self.parse_stmt_block(EMPTY_INDENT)?;
+        // Construct node
+        let n = Node::from(decl::Method::new(modifiers,name,params,returns,clauses,body));
+        // Done
+        Ok(Decl::new(self.ast,n))
+    }
 
-    // /// Parse a _property declaration_ in a Whiley source file.  A
-    // /// simple example to illustrate is:
-    // ///
-    // /// ```Whiley
-    // /// property contains(int[] xs, int x) -> bool
-    // /// requires x >= 0:
-    // ///    return some { i in 0..|xs| | xs[i] == x }
-    // /// ```
-    // ///
-    // /// Properties are permitted to have `requires` clauses, but not
-    // /// `ensures` clauses.  Their body is also constrained to admin
-    // /// only non-looping statements.
-    // pub fn parse_decl_property(&'c mut self) -> Result<Decl> {
-    //     todo![];
-    // }
+    /// Parse a _property declaration_ in a Whiley source file.  A
+    /// simple example to illustrate is:
+    ///
+    /// ```Whiley
+    /// property contains(int[] xs, int x) -> bool
+    /// requires x >= 0:
+    ///    return some { i in 0..|xs| | xs[i] == x }
+    /// ```
+    ///
+    /// Properties are permitted to have `requires` clauses, but not
+    /// `ensures` clauses.  Their body is also constrained to admin
+    /// only non-looping statements.
+    pub fn parse_decl_property(&mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
+        todo![];
+    }
 
-    // /// Parse the signature of a function, method or property.  Since
-    // /// this is common to all three, we abstract it here.
-    // pub fn parse_signature(&'c mut self) ->
-    //     Result<(Name,Vec<decl::Parameter>,Vec<decl::Parameter>,Vec<decl::Clause>)> {
-    //         let name = self.parse_identifier()?;
-    //         let params = self.parse_decl_parameters()?;
-    //         let returns = if self.lookahead(Token::MinusGreater) {
-    //             self.gap_snap(Token::MinusGreater)?;
-    //             self.parse_decl_returns()?
-    //         } else {
-    //             vec![]
-    //         };
-    //         let clauses = self.parse_spec_clauses()?;
-    //         // Done
-    //         Ok((name,params,returns,clauses))
-    //     }
+    /// Parse the signature of a function, method or property.  Since
+    /// this is common to all three, we abstract it here.
+    pub fn parse_signature(&mut self) ->
+        Result<(Name,Vec<decl::Parameter>,Vec<decl::Parameter>,Vec<decl::Clause>)> {
+            let name = self.parse_identifier()?;
+            let params = self.parse_decl_parameters()?;
+            let returns = if self.gap_snap(Token::MinusGreater).is_ok() {
+                self.parse_decl_returns()?
+            } else {
+                vec![]
+            };
+            let clauses = self.parse_spec_clauses()?;
+            // Done
+            Ok((name,params,returns,clauses))
+        }
 
     /// Parse a type declaration in a Whiley source file.  A simple
     /// example to illustrate is:
@@ -183,52 +189,52 @@ impl<'a> Parser<'a> {
         Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,typ_e))))
     }
 
-    // /// Parse a list of parameter declarations
-    // pub fn parse_decl_parameters(&mut self) -> Result<Vec<decl::Parameter>> {
-    // 	let mut params : Vec<decl::Parameter> = vec![];
-    //     // Skip any preceeding gap
-    //     self.skip_gap();
-    // 	// "("
-    // 	self.snap(Token::LeftBrace)?;
-    // 	// Keep going until a right brace
-    // 	while self.snap(Token::RightBrace).is_err() {
-    // 	    // Check if first time or not
-    // 	    if !params.is_empty() {
-    // 		// Not first time, so match comma
-    // 		self.snap(Token::Comma)?;
-    // 	    }
-    // 	    // Type
-    // 	    let f_type = self.parse_type()?;
-    // 	    // Identifier
-    // 	    let f_name = self.parse_identifier()?;
-    // 	    //
-    // 	    params.push(decl::Parameter{declared:f_type,name:f_name});
-    // 	}
-    // 	// Done
-    // 	Ok(params)
-    // }
+    /// Parse a list of parameter declarations
+    pub fn parse_decl_parameters(&mut self) -> Result<Vec<decl::Parameter>> {
+	let mut params : Vec<decl::Parameter> = vec![];
+        // Skip any preceeding gap
+        self.skip_gap();
+	// "("
+	self.lexer.snap(Token::LeftBrace)?;
+	// Keep going until a right brace
+	while self.lexer.snap(Token::RightBrace).is_err() {
+	    // Check if first time or not
+	    if !params.is_empty() {
+		// Not first time, so match comma
+		self.lexer.snap(Token::Comma)?;
+	    }
+	    // Type
+	    let f_type = self.parse_type()?;
+	    // Identifier
+	    let f_name = self.parse_identifier()?;
+	    //
+	    params.push(decl::Parameter{declared:f_type,name:f_name});
+	}
+	// Done
+	Ok(params)
+    }
 
-    // /// Parse a list of return declarations.  These are essentially
-    // /// identical to parameters except, at the moment, they can be
-    // /// "anonymous".
-    // pub fn parse_decl_returns(&mut self) -> Result<Vec<decl::Parameter>> {
-    //     // Skip any preceeding gap
-    //     self.skip_gap();
-    //     //
-    //     if self.matches(Token::LeftBrace).is_ok() {
-    //         self.parse_decl_parameters()
-    //     } else {
-    // 	    let mut params : Vec<decl::Parameter> = vec![];
-    //         // Type
-    // 	    let f_type = self.parse_type()?;
-    // 	    // Anonymous identifier
-    // 	    let f_name = Name::new(self.ast,&"$");
-    // 	    //
-    // 	    params.push(decl::Parameter{declared:f_type,name:f_name});
-    //         // Done
-    //         Ok(params)
-    //     }
-    // }
+    /// Parse a list of return declarations.  These are essentially
+    /// identical to parameters except, at the moment, they can be
+    /// "anonymous".
+    pub fn parse_decl_returns(&mut self) -> Result<Vec<decl::Parameter>> {
+        // Skip any preceeding gap
+        self.skip_gap();
+        //
+        if self.lexer.matches(Token::LeftBrace).is_ok() {
+            self.parse_decl_parameters()
+        } else {
+	    let mut params : Vec<decl::Parameter> = vec![];
+            // Type
+	    let f_type = self.parse_type()?;
+	    // Anonymous identifier
+	    let f_name = Name::new(self.ast,"$".to_string());
+	    //
+	    params.push(decl::Parameter{declared:f_type,name:f_name});
+            // Done
+            Ok(params)
+        }
+    }
 
     /// Parse modifiers for a given declaration, such as `public`,
     /// `private` or `export`.
@@ -242,23 +248,23 @@ impl<'a> Parser<'a> {
 	    // Attempt to parse declaration
 	    match lookahead.kind {
                 Token::Export => {
-                    self.lexer.snap(Token::Export);
+                    self.lexer.snap(Token::Export)?;
                     mods.push(decl::Modifier::Export);
                 }
                 Token::Final => {
-                    self.lexer.snap(Token::Final);
+                    self.lexer.snap(Token::Final)?;
                     mods.push(decl::Modifier::Final);
                 }
                 Token::Native => {
-                    self.lexer.snap(Token::Native);
+                    self.lexer.snap(Token::Native)?;
                     mods.push(decl::Modifier::Native);
                 }
                 Token::Private => {
-                    self.lexer.snap(Token::Private);
+                    self.lexer.snap(Token::Private)?;
                     mods.push(decl::Modifier::Private);
                 }
                 Token::Public => {
-                    self.lexer.snap(Token::Public);
+                    self.lexer.snap(Token::Public)?;
                     mods.push(decl::Modifier::Public);
                 }
                 _ => {
@@ -272,50 +278,124 @@ impl<'a> Parser<'a> {
     // Specification clauses
     // =========================================================================
 
-    // pub fn parse_spec_clauses(&mut self) -> Result<Vec<decl::Clause>> {
-    //     let mut clauses = Vec::new();
-    //     // Keep going until we meet a colon
-    //     while !self.lookahead(Token::Colon) {
-    //         clauses.push(self.parse_spec_clause()?);
-    //     }
-    //     // Done
-    //     Ok(clauses)
-    // }
+    pub fn parse_spec_clauses(&mut self) -> Result<Vec<decl::Clause>> {
+        let mut clauses = Vec::new();
+        // Keep going until we meet a colon
+        while self.lexer.peek().kind != Token::Colon {
+            clauses.push(self.parse_spec_clause()?);
+        }
+        // Done
+        Ok(clauses)
+    }
 
-    // pub fn parse_spec_clause(&mut self)  -> Result<decl::Clause> {
-    //     // Skip any preceeding gap
-    //     self.skip_whitespace()?;
-    //     // Decide what type of clause (if any) we have
-    // 	let lookahead = self.lexer.peek();
-    //     //
-    //     match lookahead.kind {
-    //         Token::Requires => {
-    //             self.lexer.snap(Token::Requires);
-    // 	        Ok(decl::Clause::Requires(self.parse_expr()?))
-    //         }
-    //         Token::Ensures => {
-    //             self.lexer.snap(Token::Ensures);
-    // 	        Ok(decl::Clause::Ensures(self.parse_expr()?))
-    //         }
-    //         _ => {
-    //             // Nothing else is the start of a valid statement.
-    //             Err(Error::new(lookahead,ErrorCode::InvalidSpecClause))
-    //         }
-    //     }
-    // }
+    pub fn parse_spec_clause(&mut self)  -> Result<decl::Clause> {
+        // Skip any preceeding gap
+        self.skip_whitespace()?;
+        // Decide what type of clause (if any) we have
+	let lookahead = self.lexer.peek();
+        //
+        match lookahead.kind {
+            Token::Requires => {
+                self.lexer.snap(Token::Requires)?;
+	        Ok(decl::Clause::Requires(self.parse_expr()?))
+            }
+            Token::Ensures => {
+                self.lexer.snap(Token::Ensures)?;
+	        Ok(decl::Clause::Ensures(self.parse_expr()?))
+            }
+            _ => {
+                // Nothing else is the start of a valid statement.
+                Err(Error::new(lookahead,ErrorCode::InvalidSpecClause))
+            }
+        }
+    }
 
     // =========================================================================
     // Statements
     // =========================================================================
 
-    fn parse_stmt(&mut self) -> Result<Stmt> {
+    /// Parse a block of one or more statements at a given indentation
+    /// level.  All statements in the block must have a strictly
+    /// greater indentation (i.e. must be the given indentation +
+    /// more).  There must be at least one statement to form a block.
+    pub fn parse_stmt_block(&mut self, indent : Span<Token>) -> Result<Stmt> {
+    	let mut stmts : Vec<Stmt> = Vec::new();
+        // Determine indentation level for this block
+    	let nindent = self.determine_block_indent(indent)?;
+    	// Parse remaining statements at same indent
+        while self.chars_match(self.lexer.peek(),nindent) {
+            // Attempt to parse statement
+            match self.parse_stmt(nindent)? {
+                Some(stmt) => stmts.push(stmt),
+                None => {}
+            }
+        }
+        // Done
+        Ok(Stmt::new(self.ast,Node::from(stmt::Block(stmts))))
+    }
+
+    /// Determine (and check) the indentation level for a new block.
+    /// As such, the original indentation must be a prefix of the new
+    /// indentation.  Also, we have to manage comments in this
+    /// process.
+    pub fn determine_block_indent(&mut self, indent : Span<Token>) -> Result<Span<Token>> {
+        let lookahead = self.lexer.peek();
+        match lookahead.kind {
+            Token::BlockComment|Token::LineComment => {
+                // Ignore comments!
+                self.match_line_end();
+                self.determine_block_indent(indent)
+            }
+            Token::Gap => {
+                let indent_chars = self.lexer.get(indent);
+                let nindent = self.lexer.get(lookahead);
+                // Sanity check indentation
+                if !nindent.starts_with(indent_chars) || indent_chars.len() == nindent.len() {
+    	            // Parent indent not a strict prefix of current indent.
+                    return Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent));
+                }
+                Ok(lookahead)
+            }
+            _ => {
+                // Nothing else is the start of a valid statement.
+                Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent))
+            }
+        }
+    }
+
+    /// Parse an arbitrary statement at a given level of indentation.
+    /// Observe this is not guaranteed to produce a statement since,
+    /// for example, we might just have an empty line (or a line only
+    /// with a comment).
+    pub fn parse_stmt(&mut self, indent : Span<Token>) -> Result<Option<Stmt>> {
+        // Parse indentation
+        let nindent = self.lexer.snap(Token::Gap)?;
+        // Sanity check indentation
+        if !self.chars_match(nindent,indent) {
+    	    // Parent indent not a strict prefix of current indent.
+            return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
+        }
+        // Continue
+    	let lookahead = self.lexer.peek();
+    	//
+    	match lookahead.kind {
+            // Match whitespace
+            Token::LineComment | Token::BlockComment | Token::NewLine => {
+                self.match_line_end();
+                Ok(None)
+            }
+            // Match everything else!
+    	    _ => Ok(Some(self.parse_unit_stmt()?))
+    	}
+    }
+    fn parse_unit_stmt(&mut self) -> Result<Stmt> {
         // Skip any leading whitespace
-        self.skip_whitespace();
+        self.skip_whitespace()?;
     	// Dispatch on lookahead
     	match self.lexer.peek().kind {
     	    Token::Assert => self.parse_stmt_assert(),
     	    Token::Skip => self.parse_stmt_skip(),
-            _ => panic!("GOT HERE")
+            _ => panic!("unknown statement encountered")
         }
     }
 
@@ -345,17 +425,32 @@ impl<'a> Parser<'a> {
 
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
         // Skip whitespace
-        self.skip_whitespace();
+        self.skip_whitespace()?;
         //
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
+    	    Token::False => self.parse_literal_bool(),
 	    Token::Integer => self.parse_literal_int(),
 	    Token::LeftBrace => self.parse_expr_bracketed(),
+    	    Token::True => self.parse_literal_bool(),
 	    _ => {
 		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
 	    }
 	}
+    }
+
+    pub fn parse_literal_bool(&mut self) -> Result<Expr> {
+        let tok = self.lexer.snap_any(&[Token::True,Token::False])?;
+        let expr = match tok.kind {
+            Token::False => Expr::new(self.ast,Node::from(expr::BoolLiteral(false))),
+            Token::True => Expr::new(self.ast,Node::from(expr::BoolLiteral(true))),
+            _ => {
+                unreachable!();
+            }
+        };
+        // Done
+        self.finalise(expr,tok)
     }
 
     pub fn parse_literal_int(&mut self) -> Result<Expr> {
@@ -392,18 +487,9 @@ impl<'a> Parser<'a> {
         	// Something went wrong
         	Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
             }
-            Token::Ampersand => {
-        	// Looks like a reference type
-        	self.parse_type_ref()
-            }
-            Token::LeftCurly => {
-        	// Looks like a record type
-        	self.parse_type_record()
-            }
-            _ => {
-            	// Could be an array type
-            	self.parse_type_array()
-            }
+            Token::Ampersand => self.parse_type_ref(),
+            Token::LeftCurly => self.parse_type_record(),
+            _ => self.parse_type_array()
         }
     }
 
@@ -501,7 +587,7 @@ impl<'a> Parser<'a> {
             }
         };
         // Move over it
-        self.lexer.snap(lookahead.kind);
+        self.lexer.snap(lookahead.kind)?;
         let typ_e = Type::new(self.ast,node);
         // Done
         self.finalise(typ_e,lookahead)
@@ -659,6 +745,11 @@ impl<'a> Parser<'a> {
     fn gap_snap(&mut self, kind : Token) -> Result<Span<Token>> {
         self.skip_gap();
         Ok(self.lexer.snap(kind)?)
+    }
+
+    /// Check whether the characters associated with two spans match (or not).
+    fn chars_match(&self,lhs: Span<Token>, rhs: Span<Token>) -> bool {
+        self.lexer.get(lhs) == self.lexer.get(rhs)
     }
 
     /// Construct a `BinOp` from a `Token`.
