@@ -268,29 +268,25 @@ fn scan_double_operators(input: &[char]) -> ScannerResult {
     }
 }
 
-// /// Scan contents of a character literal, whilst decoding any escaped characters.
-// fn scan_character(&mut self, start: usize) -> Token<'a> {
-//     let kind = TokenType::Character;
-//     // Skip initial quote
-//     self.chars.next();
-//     let end = self.scan_whilst(|c| c != '\'');
-//     // Skip final quote
-//     self.chars.next();
-//     let content = &self.input[start..end+1];
-//     Token{kind,start,content}
-// }
+/// Scan contents of a character literal, whilst decoding any escaped characters.
+fn scan_character(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '\'' {
+        Err(())
+    } else {
+        let s = scan_whilst(&input[1..], Token::String, |c| c != '\'')?;
+        Ok(Span::new(Token::Character,0 .. s.end()+2))
+    }
+}
 
-// /// Scan contents of a string, whilst decoding any escaped characters.
-// fn scan_string(&mut self, start: usize) -> Token<'a> {
-//     let kind = TokenType::String;
-//     // Skip initial quote
-//     self.chars.next();
-//     let end = self.scan_whilst(|c| c != '\"');
-//     // Skip final quote
-//     self.chars.next();
-//     let content = &self.input[start..end+1];
-//     Token{kind,start,content}
-// }
+/// Scan contents of a string, whilst decoding any escaped characters.
+fn scan_string(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '\"' {
+        Err(())
+    } else {
+        let s = scan_whilst(&input[1..], Token::String, |c| c != '\"')?;
+        Ok(Span::new(Token::String,0 .. s.end()+2))
+    }
+}
 
 /// Scan a line comment which runs all the way until the end of the
 /// line.  We can assume the comment start has already been matched.
@@ -382,8 +378,8 @@ static RULES : &'static [Scanner<char,Token>] = &[
     scan_block_comment,
     scan_double_operators,
     scan_single_operators,
-    // scan_character,
-    // scan_string
+    scan_character,
+    scan_string,
     scan_keyword,
     scan_identifier,
     scan_int_literal,

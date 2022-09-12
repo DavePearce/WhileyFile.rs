@@ -23,7 +23,8 @@ pub enum ErrorCode {
     UnexpectedEof,
     ExpectedLineEnd,
     ExpectedToken(Token),
-    ExpectedTokenIn(Vec<Token>)
+    ExpectedTokenIn(Vec<Token>),
+    InvalidCharacterLiteral
 }
 
 /// Identifies possible errors stemming from the parser.

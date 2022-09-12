@@ -278,19 +278,26 @@ impl<'a> Parser<'a> {
     // Specification clauses
     // =========================================================================
 
+    /// Parse zero or more _specification clauses_, such as
+    /// `requires`, `ensures`, `modifies`, etc.  There is no specific
+    /// order in which these must be given (though there are norms).
     pub fn parse_spec_clauses(&mut self) -> Result<Vec<decl::Clause>> {
         let mut clauses = Vec::new();
+        // Skip any preceeding gap
+        self.skip_whitespace()?;
         // Keep going until we meet a colon
         while self.lexer.peek().kind != Token::Colon {
             clauses.push(self.parse_spec_clause()?);
+            // Skip any preceeding gap
+            self.skip_whitespace()?;
         }
         // Done
         Ok(clauses)
     }
 
+    /// Parse a single specification clause (e.g. `requires x > 0`,
+    /// etc), otherwise produce an error.
     pub fn parse_spec_clause(&mut self)  -> Result<decl::Clause> {
-        // Skip any preceeding gap
-        self.skip_whitespace()?;
         // Decide what type of clause (if any) we have
 	let lookahead = self.lexer.peek();
         //
@@ -392,17 +399,48 @@ impl<'a> Parser<'a> {
         // Skip any leading whitespace
         self.skip_whitespace()?;
     	// Dispatch on lookahead
-    	match self.lexer.peek().kind {
+    	let stmt = match self.lexer.peek().kind {
     	    Token::Assert => self.parse_stmt_assert(),
+    	    Token::Assume => self.parse_stmt_assume(),
+    	    Token::Return => self.parse_stmt_return(),
     	    Token::Skip => self.parse_stmt_skip(),
-            _ => panic!("unknown statement encountered")
-        }
+            _ => self.parse_stmt_vardecl()
+        };
+        // Match line end
+        self.match_line_end()?;
+        // Done
+        stmt
     }
 
     pub fn parse_stmt_assert(&mut self) -> Result<Stmt> {
 	let tok = self.lexer.snap(Token::Assert)?;
 	let expr = self.parse_expr()?;
 	let stmt = Stmt::new(self.ast,Node::from(stmt::Assert(expr)));
+        self.finalise(stmt,tok)
+    }
+
+    pub fn parse_stmt_assume(&mut self) -> Result<Stmt> {
+	let tok = self.lexer.snap(Token::Assume)?;
+	let expr = self.parse_expr()?;
+	let stmt = Stmt::new(self.ast,Node::from(stmt::Assume(expr)));
+        self.finalise(stmt,tok)
+    }
+
+    pub fn parse_stmt_return(&mut self) -> Result<Stmt> {
+    	// "return"
+    	let tok = self.lexer.snap(Token::Return)?;
+    	//
+        self.skip_linespace();
+        // See whether an expression follows
+        let stmt = match self.lexer.snap(Token::NewLine) {
+            Ok(_) => Node::from(stmt::Return(Option::None)),
+            Err(_) => {
+                let expr = self.parse_expr()?;
+                Node::from(stmt::Return(Option::Some(expr)))
+            }
+        };
+        // Done
+    	let stmt = Stmt::new(self.ast,stmt);
         self.finalise(stmt,tok)
     }
 
@@ -414,13 +452,62 @@ impl<'a> Parser<'a> {
         self.finalise(stmt,tok)
     }
 
+    pub fn parse_stmt_vardecl(&mut self) -> Result<Stmt> {
+    	// type
+        let vtype = self.parse_type()?;
+        // name
+        let name = self.parse_identifier()?;
+        // Skip over any linespace
+        self.skip_linespace();
+    	// Initialiser (Optional)
+    	let expr = match self.lexer.snap(Token::Equals) {
+            Ok(_) => {
+                Option::Some(self.parse_expr()?)
+            },
+            Err(_) => Option::None
+        };
+    	// Done
+    	Ok(Stmt::new(self.ast,Node::from(stmt::VarDecl(vtype,name,expr))))
+    }
+
     // =========================================================================
     // Expressions
     // =========================================================================
 
     pub fn parse_expr(&mut self) -> Result<Expr> {
-        // self.parse_expr_binary(3)
-        self.parse_expr_term()
+        self.parse_expr_binary(3)
+    }
+
+    /// Parse a binary expression at a given _level_.  Higher levels
+    /// indicate expressions which bind _less tightly_.  Furthermore,
+    /// level `0` corresponds simply to parsing a unary expression.
+    pub fn parse_expr_binary(&mut self, level: usize) -> Result<Expr> {
+        if level == 0 {
+            self.parse_expr_term()
+        } else {
+            let tokens = BINARY_CONNECTIVES[level-1];
+            // Parse level below
+    	    let lhs = self.parse_expr_binary(level-1)?;
+            // Skip remaining whitespace (on this line)
+            self.skip_linespace();
+	    // Check whether logical connective follows
+    	    let lookahead = self.lexer.snap_any(tokens);
+            //
+            match lookahead {
+                Ok(t) => {
+                    // FIXME: turn this into a loop!
+	            let rhs = self.parse_expr_binary(level-1)?;
+                    // NOTE: following is safe because can only match
+                    // tokens which will be accepted.
+                    let bop = Self::binop_from_token(t.kind).unwrap();
+	            let node = Node::from(expr::Binary(bop,lhs,rhs));
+	            Ok(Expr::new(self.ast,node))
+                }
+                Err(_) => {
+                    Ok(lhs)
+                }
+            }
+        }
     }
 
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
@@ -430,16 +517,40 @@ impl<'a> Parser<'a> {
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
+    	    // Token::Bar => self.parse_expr_arraylength()?,
+    	    Token::Character => self.parse_literal_char(),
     	    Token::False => self.parse_literal_bool(),
-	    Token::Integer => self.parse_literal_int(),
-	    Token::LeftBrace => self.parse_expr_bracketed(),
+	    Token::Identifier => self.parse_expr_varaccess(),
+    	    Token::Integer => self.parse_literal_int(),
+    	    Token::LeftBrace => self.parse_expr_bracketed(),
+            // Token::LeftSquare => self.parse_expr_arrayinitialiser()?,
     	    Token::True => self.parse_literal_bool(),
+            Token::String => self.parse_literal_string(),
 	    _ => {
 		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
 	    }
 	}
     }
 
+    pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
+        let tok = self.lexer.peek();
+	let n = self.parse_identifier();
+	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
+        self.finalise(expr,tok)
+    }
+
+    pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
+	self.lexer.snap(Token::LeftBrace)?;
+	let expr = self.parse_expr();
+	self.lexer.snap(Token::RightBrace)?;
+        expr
+    }
+
+    // =========================================================================
+    // Literals
+    // =========================================================================
+
+    /// Parse a _boolean literal_ (i.e. `true` or `false`).
     pub fn parse_literal_bool(&mut self) -> Result<Expr> {
         let tok = self.lexer.snap_any(&[Token::True,Token::False])?;
         let expr = match tok.kind {
@@ -453,6 +564,20 @@ impl<'a> Parser<'a> {
         self.finalise(expr,tok)
     }
 
+    /// Parse a _character literal_ (e.g. `'a'`, etc).
+    pub fn parse_literal_char(&mut self) -> Result<Expr> {
+        let tok = self.lexer.snap(Token::Character)?;
+        // Sanity check this is a valid chacter.
+        if tok.len() != 3 {
+            // FIXME: handle escape sequences!
+            Err(Error::new(tok,ErrorCode::InvalidCharacterLiteral))
+        } else {
+            let chars = self.lexer.get(tok);
+    	    let expr = Expr::new(self.ast,Node::from(expr::CharLiteral(chars[1])));
+            self.finalise(expr,tok)
+        }
+    }
+
     pub fn parse_literal_int(&mut self) -> Result<Expr> {
         let tok = self.lexer.snap(Token::Integer)?;
         // Extract characters making up literal
@@ -463,11 +588,13 @@ impl<'a> Parser<'a> {
         self.finalise(expr,tok)
     }
 
-    pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
-	self.lexer.snap(Token::LeftBrace)?;
-	let expr = self.parse_expr();
-	self.lexer.snap(Token::RightBrace)?;
-        expr
+    /// Parse a _string literal_ (e.g. `"hello"`, `"world\n"`), whilst
+    /// parsing all valid escape sequences.
+    pub fn parse_literal_string(&mut self) -> Result<Expr> {
+        let tok = self.lexer.snap(Token::String)?;
+        let contents = self.lexer.get_str(tok);
+        let expr = Expr::new(self.ast,Node::from(expr::StringLiteral(contents)));
+        self.finalise(expr,tok)
     }
 
     // =========================================================================
