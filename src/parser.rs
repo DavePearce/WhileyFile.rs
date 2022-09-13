@@ -478,12 +478,32 @@ impl<'a> Parser<'a> {
         self.parse_expr_binary(3)
     }
 
+    /// Parse a sequence of zero or more expressions separated by
+    /// comma's and terminated with a given token type.  This is
+    /// useful, for example, for parsing arguments lists.  Note, this
+    /// does *not* consume the terminator.
+    pub fn parse_terminated_exprs(&mut self, terminator: Token) -> Result<Vec<Expr>> {
+        let mut exprs = Vec::new();
+        // Since terminator is expected, can skip arbitrary whitespace.
+        self.skip_whitespace()?;
+        // Continue until reached terminator
+        while self.lexer.peek().kind != terminator {
+            if exprs.len() > 0 {
+                self.lexer.snap(Token::Comma)?;
+            }
+            exprs.push(self.parse_expr()?);
+            self.skip_whitespace()?;
+        }
+        //
+        Ok(exprs)
+    }
+
     /// Parse a binary expression at a given _level_.  Higher levels
     /// indicate expressions which bind _less tightly_.  Furthermore,
     /// level `0` corresponds simply to parsing a unary expression.
     pub fn parse_expr_binary(&mut self, level: usize) -> Result<Expr> {
         if level == 0 {
-            self.parse_expr_term()
+            self.parse_expr_postfix()
         } else {
             let tokens = BINARY_CONNECTIVES[level-1];
             // Parse level below
@@ -510,6 +530,37 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse_expr_postfix(&mut self) -> Result<Expr> {
+        let mut expr = self.parse_expr_term()?;
+        // Check for postfix unary operator.
+    	let lookahead = self.lexer.peek();
+    	// FIXME: managed nested operators
+        match lookahead.kind {
+            Token::LeftSquare => self.parse_expr_arrayaccess(expr),
+            Token::LeftBrace => self.parse_expr_invoke(expr),
+            _ => Ok(expr)
+        }
+    }
+
+    pub fn parse_expr_arrayaccess(&mut self, src: Expr) -> Result<Expr> {
+        let tok = self.lexer.snap(Token::LeftSquare)?;
+        let index = self.parse_expr()?;
+        self.lexer.snap(Token::RightSquare)?;
+        let expr = Expr::new(self.ast,Node::from(expr::ArrayAccess(src,index)));
+        // FIXME: wrong because tok is not first.
+        self.finalise(expr,tok)
+    }
+
+    pub fn parse_expr_invoke(&mut self, src: Expr) -> Result<Expr> {
+	let tok = self.lexer.snap(Token::LeftBrace)?;
+	let exprs = self.parse_terminated_exprs(Token::RightBrace)?;
+	self.lexer.snap(Token::RightBrace)?;
+	//
+	let expr = Expr::new(self.ast,Node::from(expr::Invoke(src,exprs)));
+        // FIXME: wrong because tok is not first.
+        self.finalise(expr,tok)
+    }
+
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
         // Skip whitespace
         self.skip_whitespace()?;
@@ -517,13 +568,13 @@ impl<'a> Parser<'a> {
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
-    	    // Token::Bar => self.parse_expr_arraylength()?,
+    	    Token::Bar => self.parse_expr_arraylength(),
     	    Token::Character => self.parse_literal_char(),
     	    Token::False => self.parse_literal_bool(),
 	    Token::Identifier => self.parse_expr_varaccess(),
     	    Token::Integer => self.parse_literal_int(),
     	    Token::LeftBrace => self.parse_expr_bracketed(),
-            // Token::LeftSquare => self.parse_expr_arrayinitialiser()?,
+            Token::LeftSquare => self.parse_expr_arrayinitialiser(),
     	    Token::True => self.parse_literal_bool(),
             Token::String => self.parse_literal_string(),
 	    _ => {
@@ -532,6 +583,7 @@ impl<'a> Parser<'a> {
 	}
     }
 
+    /// Parse a variable access expression.
     pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
         let tok = self.lexer.peek();
 	let n = self.parse_identifier();
@@ -539,11 +591,33 @@ impl<'a> Parser<'a> {
         self.finalise(expr,tok)
     }
 
+    /// Parse a _bracketed expression_ of the form `(e)`.
     pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
 	self.lexer.snap(Token::LeftBrace)?;
 	let expr = self.parse_expr();
 	self.lexer.snap(Token::RightBrace)?;
         expr
+    }
+
+    /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
+    /// `[e1,e2]`, etc.
+    pub fn parse_expr_arrayinitialiser(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+    	let exprs = self.parse_terminated_exprs(Token::RightSquare)?;
+    	self.lexer.snap(Token::RightSquare)?;
+    	//
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs)));
+        self.finalise(expr,tok)
+    }
+
+    /// Parse an _array length_ expression of the form `|e|`.
+    pub fn parse_expr_arraylength(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::Bar)?;
+    	let expr = self.parse_expr()?;
+    	self.lexer.snap(Token::Bar)?;
+    	//
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayLength(expr)));
+        self.finalise(expr,tok)
     }
 
     // =========================================================================
