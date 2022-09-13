@@ -27,6 +27,7 @@ impl Expr {
 	    Node::CharLiteral(_) => true,
 	    Node::BinaryExpr(_) => true,
 	    Node::IntLiteral(_) => true,
+	    Node::LambdaLiteral(_) => true,
 	    Node::InvokeExpr(_) => true,
 	    Node::VarAccessExpr(_) => true,
 	    Node::StringLiteral(_) => true,
@@ -62,6 +63,13 @@ pub struct IntLiteral(pub i32);
 
 impl From<IntLiteral> for Node {
     fn from(s: IntLiteral) -> Self { Node::IntLiteral(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct LambdaLiteral(pub Name);
+
+impl From<LambdaLiteral> for Node {
+    fn from(s: LambdaLiteral) -> Self { Node::LambdaLiteral(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]

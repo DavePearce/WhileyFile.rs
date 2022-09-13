@@ -54,6 +54,7 @@ pub enum Node {
     BoolLiteral(expr::BoolLiteral),
     CharLiteral(expr::CharLiteral),
     IntLiteral(expr::IntLiteral),
+    LambdaLiteral(expr::LambdaLiteral),
     StringLiteral(expr::StringLiteral),
     // Types
     ArrayType(types::Array),

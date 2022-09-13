@@ -568,6 +568,7 @@ impl<'a> Parser<'a> {
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
+    	    Token::Ampersand => self.parse_expr_lambda(),
     	    Token::Bar => self.parse_expr_arraylength(),
     	    Token::Character => self.parse_literal_char(),
     	    Token::False => self.parse_literal_bool(),
@@ -581,22 +582,6 @@ impl<'a> Parser<'a> {
 		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
 	    }
 	}
-    }
-
-    /// Parse a variable access expression.
-    pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
-        let tok = self.lexer.peek();
-	let n = self.parse_identifier();
-	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
-        self.finalise(expr,tok)
-    }
-
-    /// Parse a _bracketed expression_ of the form `(e)`.
-    pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
-	self.lexer.snap(Token::LeftBrace)?;
-	let expr = self.parse_expr();
-	self.lexer.snap(Token::RightBrace)?;
-        expr
     }
 
     /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
@@ -617,6 +602,38 @@ impl<'a> Parser<'a> {
     	self.lexer.snap(Token::Bar)?;
     	//
     	let expr = Expr::new(self.ast,Node::from(expr::ArrayLength(expr)));
+        self.finalise(expr,tok)
+    }
+
+    /// Parse a _bracketed expression_ of the form `(e)`.
+    pub fn parse_expr_bracketed(&mut self) -> Result<Expr> {
+	self.lexer.snap(Token::LeftBrace)?;
+	let expr = self.parse_expr();
+	self.lexer.snap(Token::RightBrace)?;
+        expr
+    }
+
+    /// Parse a _lambda expression_ such as `&f`, `&(int x -> x)`,
+    /// etc.
+    pub fn parse_expr_lambda(&mut self) -> Result<Expr> {
+	self.lexer.snap(Token::Ampersand)?;
+        //
+        if self.lexer.peek().kind == Token::LeftBrace {
+            self.parse_expr_lambda_initialiser()
+        } else {
+            self.parse_literal_lambda()
+        }
+    }
+
+    pub fn parse_expr_lambda_initialiser(&mut self) -> Result<Expr> {
+        todo!("Parse lambda initialiser");
+    }
+
+    /// Parse a variable access expression.
+    pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
+        let tok = self.lexer.peek();
+	let n = self.parse_identifier();
+	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
         self.finalise(expr,tok)
     }
 
@@ -660,6 +677,14 @@ impl<'a> Parser<'a> {
         let val : i32 = content.parse().unwrap();
         let expr = Expr::new(self.ast,Node::from(expr::IntLiteral(val)));
         self.finalise(expr,tok)
+    }
+
+    pub fn parse_literal_lambda(&mut self) -> Result<Expr> {
+        let name = self.parse_identifier()?;
+        // FIXME: support type parameters here
+        let expr = Expr::new(self.ast,Node::from(expr::LambdaLiteral(name)));
+        //
+        Ok(expr)
     }
 
     /// Parse a _string literal_ (e.g. `"hello"`, `"world\n"`), whilst
