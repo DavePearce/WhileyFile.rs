@@ -58,6 +58,7 @@ pub enum Node {
     // Types
     ArrayType(types::Array),
     BoolType(types::Bool),
+    FunctionType(types::Function),
     IntType(types::Int),
     NominalType(types::Nominal),
     NullType(types::Null),

@@ -680,6 +680,26 @@ impl<'a> Parser<'a> {
 	self.parse_type_compound()
     }
 
+    /// Parse a sequence of zero or more types separated by comma's
+    /// and terminated with a given token type.  This is useful, for
+    /// example, for parsing arguments lists.  Note, this does *not*
+    /// consume the terminator.
+    pub fn parse_terminated_types(&mut self, terminator: Token) -> Result<Vec<Type>> {
+        let mut types = Vec::new();
+        // Since terminator is expected, can skip arbitrary whitespace.
+        self.skip_whitespace()?;
+        // Continue until reached terminator
+        while self.lexer.peek().kind != terminator {
+            if types.len() > 0 {
+                self.lexer.snap(Token::Comma)?;
+            }
+            types.push(self.parse_type()?);
+            self.skip_whitespace()?;
+        }
+        //
+        Ok(types)
+    }
+
     pub fn parse_type_compound(&mut self) -> Result<Type> {
         let lookahead = self.lexer.peek();
         // Attemp to distinguish
@@ -689,9 +709,26 @@ impl<'a> Parser<'a> {
         	Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
             }
             Token::Ampersand => self.parse_type_ref(),
+            Token::Function => self.parse_type_function(),
             Token::LeftCurly => self.parse_type_record(),
             _ => self.parse_type_array()
         }
+    }
+
+    /// Parse a function type such as `function()->()`,
+    /// `function(int)->(int)`, etc.
+    pub fn parse_type_function(&mut self) -> Result<Type> {
+	self.lexer.snap(Token::Function)?;
+        self.lexer.snap(Token::LeftBrace)?;
+        let params = self.parse_terminated_types(Token::RightBrace)?;
+        self.lexer.snap(Token::RightBrace)?;
+        self.lexer.snap(Token::MinusGreater)?;
+        self.lexer.snap(Token::LeftBrace)?;
+        let returns = self.parse_terminated_types(Token::RightBrace)?;
+        self.lexer.snap(Token::RightBrace)?;
+        //
+	// Done
+	Ok(Type::new(self.ast,Node::from(types::Function(params,returns))))
     }
 
     /// Parse a reference type, such as `&i32`, `&(i32[])`, `&&u16`,
