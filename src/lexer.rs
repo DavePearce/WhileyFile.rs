@@ -1,11 +1,12 @@
-use std::iter::Peekable;
-use std::str::CharIndices;
+pub use delta_inc::lex::{Error,Region,Span};
+use delta_inc::lex::{Result,Scanner,TableTokenizer};
+use delta_inc::lex;
+
 // =================================================================
 // Token
 // =================================================================
-
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub enum TokenType {
+pub enum Token {
     Ampersand,
     AmpersandAmpersand,
     Assert,
@@ -27,9 +28,10 @@ pub enum TokenType {
     Else,
     Ensures,
     EOF,
-    Equal,
-    EqualEqual,
+    Equals,
+    EqualsEquals,
     Export,
+    Fail,
     False,
     For,
     Final,
@@ -81,491 +83,237 @@ pub enum TokenType {
     Where
 }
 
-/// Represents a single token generated from a string slice.  This
-/// identifies where the token starts and ends in the original slice.
-#[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Token<'a> {
-    /// Type of the token
-    pub kind : TokenType,
-    /// Identifies the starting point within the original string of
-    /// this token.
-    pub start : usize,
-    /// Identifies the token within the original string slice.  From
-    /// this we can extract useful information.  For example, if its
-    /// an identifier we can extract the actual identifier string.
-    pub content : &'a str
+// ======================================================
+// Rules
+// ======================================================
+
+const ASSERT : &'static [char] = &['a','s','s','e','r','t'];
+const ASSUME : &'static [char] = &['a','s','s','u','m','e'];
+const BOOL : &'static [char] = &['b','o','o','l'];
+const BREAK : &'static [char] = &['b','r','e','a','k'];
+const CASE : &'static [char] = &['c','a','s','e'];
+const CONTINUE : &'static [char] = &['c','o','n','t','i','n','u','e'];
+const DEFAULT : &'static [char] = &['d','e','f','a','u','l','t'];
+const DELETE : &'static [char] = &['d','e','l','e','t','e'];
+const DO : &'static [char] = &['d','o'];
+const ELSE : &'static [char] = &['e','l','s','e'];
+const ENSURES : &'static [char] = &['e','n','s','u','r','e','s'];
+const EXPORT : &'static [char] = &['e','x','p','o','r','t'];
+const FAIL : &'static [char] = &['f','a','i','l'];
+const FALSE : &'static [char] = &['f','a','l','s','e'];
+const FOR : &'static [char] = &['f','o','r'];
+const FINAL : &'static [char] = &['f','i','n','a','l'];
+const FUNCTION : &'static [char] = &['f','u','n','c','t','i','o','n'];
+const IF : &'static [char] = &['i','f'];
+const IS : &'static [char] = &['i','s'];
+const INT : &'static [char] = &['i','n','t'];
+const I8 : &'static [char] = &['i','8'];
+const I16 : &'static [char] = &['i','1','6'];
+const I32 : &'static [char] = &['i','3','2'];
+const I64 : &'static [char] = &['i','6','4'];
+const METHOD : &'static [char] = &['m','e','t','h','o','d'];
+const NEW : &'static [char] = &['n','e','w'];
+const NULL : &'static [char] = &['n','u','l','l'];
+const NATIVE : &'static [char] = &['n','a','t','i','v','e'];
+const PRIVATE : &'static [char] = &['p','r','i','v','a','t','e'];
+const PUBLIC : &'static [char] = &['p','u','b','l','i','c'];
+const RETURN : &'static [char] = &['r','e','t','u','r','n'];
+const REQUIRES : &'static [char] = &['r','e','q','u','i','r','e','s'];
+const SKIP : &'static [char] = &['s','k','i','p'];
+const SWITCH : &'static [char] = &['s','w','i','t','c','h'];
+const TRUE : &'static [char] = &['t','r','u','e'];
+const TYPE : &'static [char] = &['t','y','p','e'];
+const WHILE : &'static [char] = &['w','h','i','l','e'];
+const UINT : &'static [char] = &['u','i','n','t'];
+const U8 : &'static [char] = &['u','8'];
+const U16 : &'static [char] = &['u','1','6'];
+const U32 : &'static [char] = &['u','3','2'];
+const U64 : &'static [char] = &['u','6','4'];
+const VOID : &'static [char] = &['v','o','i','d'];
+const WHERE : &'static [char] = &['w','h','e','r','e'];
+
+/// Handy type alias for the result type used for all of the lexical
+/// rules.
+type ScannerResult = std::result::Result<Span<Token>,()>;
+
+/// Scan an (unsigned) integer literal.
+fn scan_int_literal(input: &[char]) -> ScannerResult {
+    scan_whilst(input, Token::Integer, |c| c.is_digit(10))
 }
 
-impl<'a> Token<'a> {
-    /// Get the integer payload associated with this token, assuming
-    /// it has Integer kind.
-    pub fn as_int(&self) -> i32 {
-	// Can only call this method on integer tokens.
-	assert!(self.kind == TokenType::Integer);
-	// Parse conents (expecting integer)
-	return self.content.parse().unwrap();
-    }
-
-    /// Ghet the character payload associated with this token,
-    /// assuming it has integer kind.
-    pub fn as_char(&self) -> char {
-	// Can only call this method on character tokens.
-        assert!(self.kind == TokenType::Character);
-        // TODO: fix this!
-        self.content[1..2].chars().next().unwrap()
-    }
-
-    /// Get the string payload associated with this token.
-    pub fn as_string(&self) -> String {
-	// Can only call this method on string tokens.
-	assert!(self.kind == TokenType::String);
-        // TODO: fix this!
-	return self.content.to_string();
-    }
-
-    /// Get offset of the last character of this token.
-    pub fn end(&self) -> usize {
-	self.start + self.content.len()
-    }
-
-    /// Get the length (in bytes) of this token.
-    pub fn len(&self) -> usize {
-        self.end() - self.start
+/// Scan a keyword, which is simple identifier matching a predefined
+/// pattern.
+fn scan_keyword(input: &[char]) -> ScannerResult {
+    if input.len() == 0 || !is_identifier_start(input[0]) {
+        // Short circuit failure case.
+        return Err(())
+    } else {
+        // Extract keyword identifier (if applicable)
+        let r = scan_whilst(input, Token::Gap, is_identifier_middle)?;
+        // Attempt to match it
+        let t = match &input[r.range()] {
+	    ASSERT => Token::Assert,
+	    ASSUME => Token::Assume,
+	    BOOL => Token::Bool,
+	    BREAK => Token::Break,
+	    CASE => Token::Case,
+	    CONTINUE => Token::Continue,
+	    DEFAULT => Token::Default,
+	    DO => Token::Do,
+	    DELETE => Token::Delete,
+	    ELSE => Token::Else,
+            ENSURES => Token::Ensures,
+            EXPORT => Token::Export,
+	    FAIL => Token::Fail,
+	    FALSE => Token::False,
+	    FOR => Token::For,
+            FINAL => Token::Final,
+            FUNCTION => Token::Function,
+            IF => Token::If,
+            IS => Token::Is,
+            INT => Token::Int(0),
+	    I8 => Token::Int(8),
+	    I16 => Token::Int(16),
+	    I32 => Token::Int(32),
+	    I64 => Token::Int(64),
+            METHOD => Token::Method,
+	    NEW => Token::New,
+	    NULL => Token::Null,
+	    NATIVE => Token::Native,
+	    PRIVATE => Token::Private,
+            PUBLIC => Token::Public,
+	    RETURN => Token::Return,
+            REQUIRES => Token::Requires,
+	    SKIP => Token::Skip,
+	    SWITCH => Token::Switch,
+	    TRUE => Token::True,
+	    TYPE => Token::Type,
+            WHILE => Token::While,
+            UINT => Token::Uint(0),
+	    U8 => Token::Uint(8),
+	    U16 => Token::Uint(16),
+	    U32 => Token::Uint(32),
+	    U64 => Token::Uint(64),
+	    VOID => Token::Void,
+	    WHERE => Token::Where,
+            _ => { return Err(()); }
+        };
+        // Success!
+        Ok(Span::new(t,r.region.into()))
     }
 }
 
-// =================================================================
-// Lexer
-// =================================================================
-
-/// Provides machinery for splitting up a string slice into a sequence
-/// of tokens.
-pub struct Lexer<'a> {
-    /// String slice being tokenized
-    pub input: &'a str,
-    /// Peekable interator into characters
-    chars: Peekable<CharIndices<'a>>,
-    /// Lookahead
-    lookahead: Option<Token<'a>>
+/// Scan an identifier which starts with an alpabetic character, or an
+/// underscore and subsequently contains zero or more alpha-number
+/// characters or underscores.
+fn scan_identifier(input: &[char]) -> ScannerResult {
+    if input.len() > 0 && is_identifier_start(input[0]) {
+        scan_whilst(input, Token::Identifier, is_identifier_middle)
+    } else {
+        Err(())
+    }
 }
 
-/// An acceptor determines whether or not a character is part of a
-/// given token.
-type Acceptor = fn(char)->bool;
-
-/// An acceptor determines whether or not a pair of characters is matched.
-type Acceptor2 = fn(char,char)->bool;
-
-impl<'a> Lexer<'a> {
-    /// Construct a new lexer for a given string slice.
-    pub fn new(input: &'a str) -> Self {
-        // Extract peekable iterator
-        let chars = input.char_indices().peekable();
-        // Construct lexer
-        return Self {
-            input, chars, lookahead: None
-        }
+/// Scan all single-character operators.
+fn scan_single_operators(input: &[char]) -> ScannerResult {
+    if input.len() == 0 {
+        Err(())
+    } else {
+        let t = match input[0] {
+            '&' => Token::Ampersand,
+            '|' => Token::Bar,
+            ',' => Token::Comma,
+            ':' => Token::Colon,
+            '.' => Token::Dot,
+            '=' => Token::Equals,
+            '<' => Token::LeftAngle,
+            '(' => Token::LeftBrace,
+            '{' => Token::LeftCurly,
+            '[' => Token::LeftSquare,
+            '-' => Token::Minus,
+            '%' => Token::Percent,
+            '+' => Token::Plus,
+            '>' => Token::RightAngle,
+            ')' => Token::RightBrace,
+            '}' => Token::RightCurly,
+            '/' => Token::RightSlash,
+            ']' => Token::RightSquare,
+            ';' => Token::SemiColon,
+            '!' => Token::Shreak,
+            '*' => Token::Star,
+            _ => { return Err(()); }
+        };
+        //
+        Ok(Span::new(t,0..1))
     }
+}
 
-    /// Determine current offset within input string.
-    pub fn offset(&mut self) -> usize {
-        self.peek().start
+/// Scan all double-character operators.
+fn scan_double_operators(input: &[char]) -> ScannerResult {
+    if input.len() <= 1 {
+        Err(())
+    } else {
+        let t = match (input[0], input[1]) {
+            ('&','&') => Token::AmpersandAmpersand,
+            ('|','|') => Token::BarBar,
+            ('=','=') => Token::EqualsEquals,
+            ('<','=') => Token::LeftAngleEquals,
+            ('-','>') => Token::MinusGreater,
+            ('>','=') => Token::RightAngleEquals,
+            ('!','=') => Token::ShreakEquals,
+            _ => { return Err(()); }
+        };
+        //
+        Ok(Span::new(t,0..2))
     }
+}
 
-    /// Peek at the next token in the sequence, or none if we have
-    /// reached the end.
-    pub fn peek(&mut self) -> Token<'a> {
-	// Check whether lookahead already available
-	if self.lookahead.is_none() {
-	    // Lookahead not initialised, so physically read token.
-	    self.lookahead = Some(self.next())
-	}
-	//
-	self.lookahead.unwrap()
+/// Scan contents of a character literal, whilst decoding any escaped characters.
+fn scan_character(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '\'' {
+        Err(())
+    } else {
+        let s = scan_whilst(&input[1..], Token::String, |c| c != '\'')?;
+        Ok(Span::new(Token::Character,0 .. s.end()+2))
     }
+}
 
-    /// Check whether the lexer is at the end of file.
-    pub fn is_eof(&mut self) -> bool {
-        self.peek().kind == TokenType::EOF
+/// Scan contents of a string, whilst decoding any escaped characters.
+fn scan_string(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '\"' {
+        Err(())
+    } else {
+        let s = scan_whilst(&input[1..], Token::String, |c| c != '\"')?;
+        Ok(Span::new(Token::String,0 .. s.end()+2))
     }
+}
 
-    /// Get the next token in the sequence, or none if we have reached
-    /// the end.
-    pub fn next(&mut self) -> Token<'a> {
-	// Check whether lookahead available
-	match self.lookahead {
-	    Some(t) => {
-		// Reset lookahead
-		self.lookahead = None;
-		// Return it
-		t
-	    }
-	    None => {
-		// Try and extract next character
-		let n = self.chars.next();
-		// Sanity check it
-		match n {
-		    None => {
-			self.eof()
-		    }
-		    Some((offset,ch)) => {
-			self.scan(offset,ch)
-		    }
-		}
-	    }
-	}
+/// Scan a line comment which runs all the way until the end of the
+/// line.  We can assume the comment start has already been matched.
+fn scan_line_comment(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '/' || input[1] != '/' {
+        Err(())
+    } else {
+        scan_whilst(input, Token::LineComment, |c| c != '\n')
     }
+}
 
-    /// Begin process of scanning a token based on its first
-    /// character.  The actual work is offloaded to a helper based on
-    /// this.
-    fn scan(&mut self, start: usize, ch: char) -> Token<'a> {
-        // Switch on first character of token
-        if ch == ' ' || ch == '\t' {
-            self.scan_indent(start)
-        } else if ch == '\n' {
-            self.scan_newline(start)
-        } else if ch.is_digit(10) {
-            self.scan_integer(start)
-        } else if is_identifier_start(ch)  {
-            self.scan_identifier_or_keyword(start)
-        } else if ch == '\'' {
-            self.scan_character(start)
-        } else if ch == '"' {
-            self.scan_string(start)
+/// Scan a block comment which runs all the way until the comment
+/// terminator is reached.  We can assume the comment start has
+/// already been matched.
+fn scan_block_comment(input: &[char]) -> ScannerResult {
+    if input.len() < 2 || input[0] != '/' || input[1] != '*' {
+        Err(())
+    } else {
+        let mut i = 3;
+        while i < input.len() && !(input[i-1] == '*' && input[i] == '/') { i = i + 1; }
+        if i == 3 {
+            Err(())
+        } else if i == input.len() {
+            Ok(Span::new(Token::BlockComment, 0..i))
         } else {
-            self.scan_operator(start,ch)
+            Ok(Span::new(Token::BlockComment, 0..i+1))
         }
-    }
-
-    /// Scan an indent from a given starting point.
-    fn scan_indent(&mut self, start:usize) -> Token<'a> {
-        let kind = TokenType::Gap;
-        let end = self.scan_whilst(|c| c == ' ' || c == '\t');
-        let content = &self.input[start..end];
-        Token{kind,start,content}
-    }
-
-    fn scan_newline(&mut self, start:usize) -> Token<'a> {
-        let kind = TokenType::NewLine;
-        let content = &self.input[start..start+1];
-        Token{kind,start,content}
-    }
-
-    /// Scan all digits from a given starting point.
-    fn scan_integer(&mut self, start: usize) -> Token<'a> {
-        let kind = TokenType::Integer;
-        let end = self.scan_whilst(|c| c.is_digit(10));
-        let content = &self.input[start..end];
-        Token{kind,start,content}
-    }
-
-    /// Scan an identifier or keyword.
-    fn scan_identifier_or_keyword(&mut self, start: usize) -> Token<'a> {
-        let end = self.scan_whilst(is_identifier_middle);
-        let content = &self.input[start..end];
-        let kind = match content {
-	    "assert" => TokenType::Assert,
-	    "assume" => TokenType::Assume,
-	    "bool" => TokenType::Bool,
-	    "break" => TokenType::Break,
-	    "case" => TokenType::Case,
-	    "continue" => TokenType::Continue,
-	    "default" => TokenType::Default,
-	    "do" => TokenType::Do,
-	    "delete" => TokenType::Delete,
-	    "else" => TokenType::Else,
-            "ensures" => TokenType::Ensures,
-            "export" => TokenType::Export,
-	    "false" => TokenType::False,
-	    "for" => TokenType::For,
-            "final" => TokenType::Final,
-            "function" => TokenType::Function,
-            "if" => TokenType::If,
-            "is" => TokenType::Is,
-            "int" => TokenType::Int(0),
-	    "i8" => TokenType::Int(8),
-	    "i16" => TokenType::Int(16),
-	    "i32" => TokenType::Int(32),
-	    "i64" => TokenType::Int(64),
-            "method" => TokenType::Method,
-	    "new" => TokenType::New,
-	    "null" => TokenType::Null,
-	    "native" => TokenType::Native,
-	    "private" => TokenType::Private,
-            "public" => TokenType::Public,
-	    "return" => TokenType::Return,
-            "requires" => TokenType::Requires,
-	    "skip" => TokenType::Skip,
-	    "switch" => TokenType::Switch,
-	    "true" => TokenType::True,
-	    "type" => TokenType::Type,
-            "while" => TokenType::While,
-            "uint" => TokenType::Uint(0),
-	    "u8" => TokenType::Uint(8),
-	    "u16" => TokenType::Uint(16),
-	    "u32" => TokenType::Uint(32),
-	    "u64" => TokenType::Uint(64),
-	    "void" => TokenType::Void,
-	    "where" => TokenType::Where,
-            _ => {
-                TokenType::Identifier
-            }
-        };
-        Token{kind,start,content}
-    }
-
-    /// Scan an operator from a given starting point.
-    fn scan_operator(&mut self, start: usize, ch: char) -> Token<'a> {
-        let end : usize;
-        let kind = match ch {
-	    '&' => {
-                if self.matches('&') {
-                    end = start + 2;
-                    TokenType::AmpersandAmpersand
-                } else {
-		    end = start + 1;
-                    TokenType::Ampersand
-                }
-	    }
-	    '|' => {
-                if self.matches('|') {
-                    end = start + 2;
-                    TokenType::BarBar
-                } else {
-		    end = start + 1;
-                    TokenType::Bar
-                }
-	    }
-	    ':' => {
-		end = start + 1;
-                TokenType::Colon
-	    }
-	    ',' => {
-		end = start + 1;
-                TokenType::Comma
-	    }
-	    '.' => {
-		end = start + 1;
-                TokenType::Dot
-	    }
-	    '=' => {
-                if self.matches('=') {
-                    end = start + 2;
-                    TokenType::EqualEqual
-                } else {
-		    end = start + 1;
-                    TokenType::Equal
-                }
-	    }
-	    '<' => {
-                if self.matches('=') {
-                    end = start + 2;
-                    TokenType::LeftAngleEquals
-                } else {
-                    end = start + 1;
-                    TokenType::LeftAngle
-                }
-            }
-            '(' => {
-                end = start + 1;
-                TokenType::LeftBrace
-            }
-	    '{' => {
-                end = start + 1;
-                TokenType::LeftCurly
-            }
-	    '[' => {
-                end = start + 1;
-                TokenType::LeftSquare
-            }
-	    '-' => {
-                if self.matches('>') {
-                    end = start + 2;
-                    TokenType::MinusGreater
-                } else {
-                    end = start + 1;
-                    TokenType::Minus
-                }
-            }
-	    '%' => {
-                end = start + 1;
-                TokenType::Percent
-            }
-	    '+' => {
-                end = start + 1;
-                TokenType::Plus
-            }
-            '>' => {
-                if self.matches('=') {
-                    end = start + 2;
-                    TokenType::RightAngleEquals
-                } else {
-                    end = start + 1;
-                    TokenType::RightAngle
-                }
-            }
-	    ')' => {
-                end = start + 1;
-                TokenType::RightBrace
-            }
-	    '}' => {
-                end = start + 1;
-                TokenType::RightCurly
-            }
-	    '/' => {
-                if self.matches('/') {
-                    return self.scan_line_comment(start);
-                } else if self.matches('*') {
-                    return self.scan_block_comment(start);
-                } else {
-                    end = start + 1;
-                    TokenType::RightSlash
-                }
-            }
-	    ']' => {
-                end = start + 1;
-                TokenType::RightSquare
-            }
-	    ';' => {
-		end = start + 1;
-                TokenType::SemiColon
-	    }
-	    '!' => {
-                if self.matches('=') {
-                    end = start + 2;
-                    TokenType::ShreakEquals
-                } else {
-                    end = start + 1;
-                    TokenType::Shreak
-                }
-            }
-	    '*' => {
-                end = start + 1;
-                TokenType::Star
-            }
-            _ => {
-                return self.eof();
-            }
-        };
-        let content = &self.input[start..end];
-        Token{kind,start,content}
-    }
-
-    /// Scan contents of a character literal, whilst decoding any escaped characters.
-    fn scan_character(&mut self, start: usize) -> Token<'a> {
-        let kind = TokenType::Character;
-        // Skip initial quote
-        self.chars.next();
-        let end = self.scan_whilst(|c| c != '\'');
-        // Skip final quote
-        self.chars.next();
-        let content = &self.input[start..end+1];
-        Token{kind,start,content}
-    }
-
-    /// Scan contents of a string, whilst decoding any escaped characters.
-    fn scan_string(&mut self, start: usize) -> Token<'a> {
-        let kind = TokenType::String;
-        // Skip initial quote
-        self.chars.next();
-        let end = self.scan_whilst(|c| c != '\"');
-        // Skip final quote
-        self.chars.next();
-        let content = &self.input[start..end+1];
-        Token{kind,start,content}
-    }
-
-    /// Scan a line comment which runs all the way until the end of the
-    /// line.  We can assume the comment start has already been matched.
-    fn scan_line_comment(&mut self, start:usize) -> Token<'a> {
-        let end = self.scan_whilst(|c| c != '\n');
-        let content = &self.input[start..end];
-        let kind = TokenType::LineComment;
-        Token{kind,start,content}
-    }
-
-    /// Scan a block comment which runs all the way until the comment
-    /// terminator is reached.  We can assume the comment start has
-    /// already been matched.
-    fn scan_block_comment(&mut self, start:usize) -> Token<'a> {
-        let end = self.scan_whilst2(|c1,c2| !(c1 == '*' && c2 == '/'));
-        let content = if end != self.input.len() {
-            self.chars.next();
-            &self.input[start..end+1]
-        } else {
-            &self.input[start..end]
-        };
-
-        let kind = TokenType::BlockComment;
-        Token{kind,start,content}
-    }
-
-    /// Gobble all characters matched by an acceptor.  For example, we
-    /// might want to continue matching digits until we encounter
-    /// something which isn't a digit (or is the end of the file).
-    fn scan_whilst(&mut self, pred : Acceptor) -> usize {
-        // Continue reading whilst we're still matching characters
-        while let Some((o,c)) = self.chars.peek() {
-            if !pred(*c) {
-                // If we get here, then bumped into something which is
-                // not part of this token.
-                return *o;
-            }
-            // Move to next character
-            self.chars.next();
-        }
-        // If we get here, then ran out of characters.  So everything
-        // from the starting point onwards is part of the token.
-        self.input.len()
-    }
-
-    /// Gobble all characters matched by a binary acceptor.
-    fn scan_whilst2(&mut self, pred : Acceptor2) -> usize {
-        // Read first character
-        let mut last = match self.chars.next() {
-            None => {
-                return self.input.len();
-            }
-            Some((o,c)) => c
-        };
-        // Continue reading whilst we're still matching characters
-        while let Some((o,c)) = self.chars.peek() {
-            if !pred(last,*c) {
-                // If we get here, then bumped into something which is
-                // not part of this token.
-                return *o;
-            }
-            // Update last
-            last = *c;
-            // Move to next character
-            self.chars.next();
-        }
-        // If we get here, then ran out of characters.  So everything
-        // from the starting point onwards is part of the token.
-        self.input.len()
-    }
-
-    /// Attempt to match following character
-    fn matches(&mut self, ch: char) -> bool {
-        match self.chars.peek() {
-            Some((_,c)) => {
-                if *c == ch {
-                    // Consume character
-                    self.chars.next();
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => false
-        }
-    }
-
-    /// Construct appropriate EOF token for this lexer.  The key issue
-    /// is that the token must end one character past end of input.
-    fn eof(&self) -> Token<'a> {
-        Token{kind: TokenType::EOF,start:self.input.len(),content: ""}
     }
 }
 
@@ -580,408 +328,516 @@ fn is_identifier_middle(c: char) -> bool {
     c.is_digit(10) || is_identifier_start(c)
 }
 
+/// Scan a "gap" which is a sequence of zero or more tabs and spaces.
+fn scan_gap(input: &[char]) -> ScannerResult {
+    scan_whilst(input, Token::Gap, |c| c == ' ' || c == '\t')
+}
+
+fn scan_newline(input: &[char]) -> ScannerResult {
+    scan_one(input,Token::NewLine,'\n')
+}
+
+/// If there is nothing left to scan, then we've reached the
+/// End-Of-File.
+fn scan_eof(input: &[char]) -> ScannerResult {
+    if input.len() == 0 {
+        Ok(Span::new(Token::EOF,0..0))
+    } else {
+        Err(())
+    }
+}
+
+/// Helper which scans an item matching a given predicate.  If no
+/// characters match, then it fails.
+fn scan_whilst<P>(input: &[char], t: Token, pred: P) -> ScannerResult
+where P: Fn(char) -> bool {
+    let mut i = 0;
+    // Continue whilst predicate matches
+    while i < input.len() && pred(input[i]) { i = i + 1; }
+    // Check what happened
+    if i == 0 {
+        // Nothing matched
+        Err(())
+    } else {
+        // Something matched
+        Ok(Span::new(t, 0..i))
+    }
+}
+
+fn scan_one(input: &[char], t: Token, c: char) -> ScannerResult {
+    if input.len() > 0 && input[0] == c {
+        Ok(Span::new(t, 0..1))
+    } else {
+        Err(())
+    }
+}
+
+/// The set of rules used for lexing.
+static RULES : &'static [Scanner<char,Token>] = &[
+    scan_line_comment,
+    scan_block_comment,
+    scan_double_operators,
+    scan_single_operators,
+    scan_character,
+    scan_string,
+    scan_keyword,
+    scan_identifier,
+    scan_int_literal,
+    scan_gap,
+    scan_newline,
+    scan_eof
+];
+
+// ======================================================
+// Lexer
+// ======================================================
+
+pub struct Lexer {
+    /// Internal lexer used for the heavy lifting.
+    lexer: lex::Lexer<TableTokenizer<char,Token>>
+}
+
+impl Lexer {
+    /// Construct a `Lexer` from a given string slice.
+    pub fn new(input: &str) -> Lexer {
+        let tokenizer = TableTokenizer::new(RULES.to_vec());
+        let chars = input.chars().collect();
+        Lexer{lexer:lex::Lexer::new(chars, tokenizer)}
+    }
+
+    /// Turn an integer token into a `i32`.  Observe that this will
+    /// panic if the underlying characters of the token don't parse.
+    pub fn get_int(&self, t: Span<Token>) -> u32 {
+        // Sanity check this makes sense.
+        assert!(t.kind == Token::Integer);
+        // Extract characters from token.
+        let chars = self.lexer.get(t);
+        // Convert to string
+        let s: String = chars.into_iter().collect();
+        // Parse to i32
+        s.parse().unwrap()
+    }
+
+    pub fn get_str(&self, t: Span<Token>) -> String {
+        // Extract characters from token.
+        let chars = self.lexer.get(t);
+        // Convert to string
+        chars.into_iter().collect()
+    }
+
+    pub fn get(&self, t: Span<Token>) -> &[char] {
+        self.lexer.get(t)
+    }
+
+    /// Pass through request to underlying lexer
+    pub fn is_eof(&self) -> bool { self.lexer.is_eof() }
+    /// Pass through request to underlying lexer
+    pub fn peek(&self) -> Span<Token> { self.lexer.peek() }
+    /// Pass through request to underlying lexer
+    pub fn snap(&mut self, kind : Token) -> Result<Token> {
+        self.lexer.snap(kind)
+    }
+    /// Pass through request to underlying lexer
+    pub fn snap_any(&mut self, kinds : &[Token]) -> Result<Token> {
+        self.lexer.snap_any(kinds)
+    }
+    /// Peek characters of next token.
+    pub fn peek_chars(&self) -> &[char] {
+        self.get(self.peek())
+    }
+    /// Match a given token type in the current stream without consuming it.
+    pub fn matches(&mut self, kind : Token) -> Result<Token> {
+        // Peek at the next token
+	let lookahead = self.lexer.peek();
+	// Check it!
+	if lookahead.kind == kind {
+	    Ok(lookahead)
+	} else {
+	    // Reject
+	    Err(Error::Expected(kind,lookahead))
+	}
+    }
+}
+
 // ======================================================
 // Tests
 // ======================================================
 
-#[test]
-fn test_01() {
-    let mut l = Lexer::new("");
-    assert!(l.peek().kind == TokenType::EOF);
-    assert!(l.next().kind == TokenType::EOF);
-}
 
-#[test]
-fn test_02() {
-    let mut l = Lexer::new(" ");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::EOF);
-}
+#[cfg(test)]
+mod tests {
+    use crate::lexer::{Lexer,Token};
 
-#[test]
-fn test_03() {
-    let mut l = Lexer::new("  ");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    /// Handy definition
+    macro_rules! assert_ok {
+        ($result:expr) => { assert!($result.is_ok()); };
+    }
 
-#[test]
-fn test_04() {
-    let mut l = Lexer::new("\n");
-    assert!(l.peek().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_01() {
+        let mut l = Lexer::new("");
+        assert!(l.peek().kind == Token::EOF);
+        assert_ok!(l.snap(Token::EOF));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_05() {
-    let mut l = Lexer::new(" \n");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_02() {
+        let mut l = Lexer::new(" ");
+        assert!(l.peek().kind == Token::Gap);
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_06() {
-    let mut l = Lexer::new("\n ");
-    assert!(l.peek().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_03() {
+        let mut l = Lexer::new("  ");
+        assert!(l.peek().kind == Token::Gap);
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_07() {
-    let mut l = Lexer::new("\t");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::EOF);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_04() {
+        let mut l = Lexer::new("\n");
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_08() {
-    let mut l = Lexer::new("\t ");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::EOF);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_05() {
+        let mut l = Lexer::new(" \n");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_09() {
-    let mut l = Lexer::new(" \t");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::EOF);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_06() {
+        let mut l = Lexer::new("\n ");
+        assert!(l.peek().kind == Token::NewLine);
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-// Literals
+    #[test]
+    fn test_07() {
+        let mut l = Lexer::new("\t");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_10() {
-    let mut l = Lexer::new("1");
-    assert!(l.peek().kind == TokenType::Integer);
-    assert!(l.next().kind == TokenType::Integer);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_08() {
+        let mut l = Lexer::new("\t ");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_11() {
-    let mut l = Lexer::new("  1");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().as_int() == 1);
-    assert!(l.next().as_int() == 1);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_09() {
+        let mut l = Lexer::new(" \t");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_12() {
-    let mut l = Lexer::new("1234");
-    assert!(l.peek().as_int() == 1234);
-    assert!(l.next().as_int() == 1234);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    // Literals
 
-#[test]
-fn test_13() {
-    let mut l = Lexer::new("1234 ");
-    assert!(l.peek().as_int() == 1234);
-    assert!(l.next().as_int() == 1234);
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_10() {
+        let mut l = Lexer::new("1");
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_14() {
-    let mut l = Lexer::new("1234_");
-    assert!(l.peek().kind == TokenType::Integer);
-    assert!(l.next().kind == TokenType::Integer);
-    assert!(l.peek().kind == TokenType::Identifier);
-    assert!(l.next().kind == TokenType::Identifier);
-    assert!(l.peek().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_11() {
+        let mut l = Lexer::new("  1");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_15() {
-    let mut l = Lexer::new("1234X");
-    assert!(l.peek().as_int() == 1234);
-    assert!(l.next().as_int() == 1234);
-    assert!(l.peek().kind == TokenType::Identifier);
-    assert!(l.next().kind == TokenType::Identifier);
-    assert!(l.peek().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_12() {
+        let mut l = Lexer::new("1234");
+        assert!(l.get_int(l.peek()) == 1234);
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_16() {
-    let mut l = Lexer::new("1234 12");
-    assert!(l.peek().as_int() == 1234);
-    assert!(l.next().as_int() == 1234);
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().as_int() == 12);
-    assert!(l.next().as_int() == 12);
-}
+    #[test]
+    fn test_13() {
+        let mut l = Lexer::new("1234 ");
+        assert!(l.get_int(l.peek()) == 1234);
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-// Identifiers
+    #[test]
+    fn test_14() {
+        let mut l = Lexer::new("1234_");
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_20() {
-    let mut l = Lexer::new("abc");
-    let t = l.next();
-    assert!(t.kind == TokenType::Identifier);
-    assert!(t.content == "abc");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_15() {
+        let mut l = Lexer::new("1234X");
+        assert!(l.get_int(l.peek()) == 1234);
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_21() {
-    let mut l = Lexer::new("  abc");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::Identifier);
-    let t = l.next();
-    assert!(t.kind == TokenType::Identifier);
-    assert!(t.content == "abc");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_16() {
+        let mut l = Lexer::new("1234 12");
+        assert!(l.get_int(l.peek()) == 1234);
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_22() {
-    let mut l = Lexer::new("_abc");
-    assert!(l.peek().kind == TokenType::Identifier);
-    let t = l.next();
-    assert!(t.kind == TokenType::Identifier);
-    assert!(t.content == "_abc");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    // Identifiers
 
-#[test]
-fn test_23() {
-    let mut l = Lexer::new("a_bD12233_");
-    assert!(l.peek().kind == TokenType::Identifier);
-    let t = l.next();
-    assert!(t.kind == TokenType::Identifier);
-    assert!(t.content == "a_bD12233_");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_20() {
+        let mut l = Lexer::new("abc");
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_24() {
-    let mut l = Lexer::new("_abc cd");
-    assert!(l.peek().kind == TokenType::Identifier);
-    let t1 = l.next();
-    assert!(t1.kind == TokenType::Identifier);
-    assert!(t1.content == "_abc");
-    assert!(l.peek().kind == TokenType::Gap);
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().kind == TokenType::Identifier);
-    let t2 = l.next();
-    assert!(t2.kind == TokenType::Identifier);
-    assert!(t2.content == "cd");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_21() {
+        let mut l = Lexer::new("  abc");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-// Keywords
+    #[test]
+    fn test_22() {
+        let mut l = Lexer::new("_abc");
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_30() {
-    let mut l = Lexer::new("if");
-    assert!(l.peek().kind == TokenType::If);
-    assert!(l.next().kind == TokenType::If);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_23() {
+        let mut l = Lexer::new("a_bD12233_");
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_31() {
-    let mut l = Lexer::new("while");
-    assert!(l.peek().kind == TokenType::While);
-    assert!(l.next().kind == TokenType::While);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_24() {
+        let mut l = Lexer::new("_abc cd");
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::Identifier));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-// Operators
+    // Keywords
 
-#[test]
-fn test_40() {
-    let mut l = Lexer::new("(");
-    assert!(l.peek().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_30() {
+        let mut l = Lexer::new("if");
+        assert_ok!(l.snap(Token::If));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_41() {
-    let mut l = Lexer::new("((");
-    assert!(l.peek().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.peek().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::EOF);
-}
 
-#[test]
-fn test_42() {
-    let mut l = Lexer::new(")");
-    assert!(l.peek().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::RightBrace);
-}
+    #[test]
+    fn test_31() {
+        let mut l = Lexer::new("while");
+        assert_ok!(l.snap(Token::While));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_43() {
-    let mut l = Lexer::new("))");
-    assert!(l.peek().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::RightBrace);
-    assert!(l.peek().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    // Operators
 
-#[test]
-fn test_44() {
-    let mut l = Lexer::new("()");
-    assert!(l.peek().kind == TokenType::LeftBrace);
-    assert!(l.next().kind == TokenType::LeftBrace);
-    assert!(l.peek().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::RightBrace);
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_40() {
+        let mut l = Lexer::new("(");
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-// Comments
+    #[test]
+    fn test_41() {
+        let mut l = Lexer::new("((");
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_50() {
-    let mut l = Lexer::new("// hello world");
-    assert!(l.peek().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.peek().kind == TokenType::EOF);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_42() {
+        let mut l = Lexer::new(")");
+        assert_ok!(l.snap(Token::RightBrace));
+    }
 
-#[test]
-fn test_51() {
-    let mut l = Lexer::new("// hello world\n");
-    assert!(l.peek().content == "// hello world");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_43() {
+        let mut l = Lexer::new("))");
+        assert_ok!(l.snap(Token::RightBrace));
+        assert_ok!(l.snap(Token::RightBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_52() {
-    let mut l = Lexer::new("  // hello world\n");
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().content == "// hello world");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_44() {
+        let mut l = Lexer::new("()");
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::RightBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_53() {
-    let mut l = Lexer::new("  // hello world\n// another comment");
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().content == "// hello world");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.peek().content == "// another comment");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_45() {
+        let mut l = Lexer::new("<=");
+        assert_ok!(l.snap(Token::LeftAngleEquals));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_54() {
-    let mut l = Lexer::new("  /// hello world");
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().content == "/// hello world");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_46() {
+        let mut l = Lexer::new(">=");
+        assert_ok!(l.snap(Token::RightAngleEquals));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_55() {
-    let mut l = Lexer::new("/*hello world*/");
-    assert!(l.peek().content == "/*hello world*/");
-    assert!(l.next().kind == TokenType::BlockComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_47() {
+        let mut l = Lexer::new("==");
+        assert_ok!(l.snap(Token::EqualsEquals));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_56() {
-    let mut l = Lexer::new("/*/\n");
-    assert!(l.peek().content == "/*/\n");
-    assert!(l.next().kind == TokenType::BlockComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_48() {
+        let mut l = Lexer::new("!=");
+        assert_ok!(l.snap(Token::ShreakEquals));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_57() {
-    let mut l = Lexer::new("/*hello\n world*/");
-    assert!(l.peek().content == "/*hello\n world*/");
-    assert!(l.next().kind == TokenType::BlockComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_49() {
+        let mut l = Lexer::new("&&");
+        assert_ok!(l.snap(Token::AmpersandAmpersand));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_58() {
-    let mut l = Lexer::new(" /*hello world*/");
-    assert!(l.next().kind == TokenType::Gap);
-    assert!(l.peek().content == "/*hello world*/");
-    assert!(l.next().kind == TokenType::BlockComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    #[test]
+    fn test_4a() {
+        let mut l = Lexer::new("||");
+        assert_ok!(l.snap(Token::BarBar));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_59() {
-    let mut l = Lexer::new("/*hello world*/\n// Hello");
-    assert!(l.peek().content == "/*hello world*/");
-    assert!(l.next().kind == TokenType::BlockComment);
-    assert!(l.next().kind == TokenType::NewLine);
-    assert!(l.peek().content == "// Hello");
-    assert!(l.next().kind == TokenType::LineComment);
-    assert!(l.next().kind == TokenType::EOF);
-    assert!(l.is_eof());
-}
+    // Comments
 
-// Combinations
+    #[test]
+    fn test_50() {
+        let mut l = Lexer::new("// hello world");
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_60() {
-    let mut l = Lexer::new("while(");
-    let t1 = l.next();
-    assert!(t1.kind == TokenType::While);
-    assert!(t1.content == "while");
-    let t2 = l.next();
-    assert!(t2.kind == TokenType::LeftBrace);
-    assert!(t2.content == "(");
-    assert!(l.next().kind == TokenType::EOF);
-}
+    #[test]
+    fn test_51() {
+        let mut l = Lexer::new("// hello world\n");
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::EOF));
+    }
 
-#[test]
-fn test_61() {
-    let mut l = Lexer::new("12345(");
-    let t1 = l.next();
-    assert!(t1.kind == TokenType::Integer);
-    assert!(t1.as_int() == 12345);
-    let t2 = l.next();
-    assert!(t2.kind == TokenType::LeftBrace);
-    assert!(t2.content == "(");
-    assert!(l.next().kind == TokenType::EOF);
+    #[test]
+    fn test_52() {
+        let mut l = Lexer::new("  // hello world\n");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_53() {
+        let mut l = Lexer::new("  // hello world\n// another comment");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_54() {
+        let mut l = Lexer::new("  /// hello world");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_55() {
+        let mut l = Lexer::new("/*hello world*/");
+        assert_ok!(l.snap(Token::BlockComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_56() {
+        let mut l = Lexer::new("/*/\n");
+        assert_ok!(l.snap(Token::BlockComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_57() {
+        let mut l = Lexer::new("/*hello\n world*/");
+        assert_ok!(l.snap(Token::BlockComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_58() {
+        let mut l = Lexer::new(" /*hello world*/");
+        assert_ok!(l.snap(Token::Gap));
+        assert_ok!(l.snap(Token::BlockComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_59() {
+        let mut l = Lexer::new("/*hello world*/\n// Hello");
+        assert_ok!(l.snap(Token::BlockComment));
+        assert_ok!(l.snap(Token::NewLine));
+        assert_ok!(l.snap(Token::LineComment));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    // Combinations
+
+    #[test]
+    fn test_60() {
+        let mut l = Lexer::new("while(");
+        assert_ok!(l.snap(Token::While));
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
+
+    #[test]
+    fn test_61() {
+        let mut l = Lexer::new("12345(");
+        assert_ok!(l.snap(Token::Integer));
+        assert_ok!(l.snap(Token::LeftBrace));
+        assert_ok!(l.snap(Token::EOF));
+    }
 }

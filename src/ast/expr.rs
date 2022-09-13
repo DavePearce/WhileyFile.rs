@@ -1,5 +1,4 @@
 use crate::ast::*;
-use crate::lexer::{Token,TokenType};
 
 // =============================================================================
 // Expressions
@@ -107,38 +106,23 @@ impl From<Binary> for Node {
 
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum BinOp {
+    // Arithmetic
+    Add,
+    Subtract,
+    Divide,
+    Multiply,
+    Remainder,
+    // Comparators
     Equals,
     NotEquals,
     LessThan,
-    GreaterThan,
     LessThanOrEquals,
+    GreaterThan,
     GreaterThanOrEquals,
+    // Logical
     LogicalAnd,
     LogicalOr,
-    LogicalXor,
-}
-
-impl BinOp {
-    /// Attempt to construct a binary operator from an arbitrary
-    /// token.  Obviously, this is not guaranteed to succeed!
-    pub fn from(token: &Token) -> Option<Self> {
-	let bop = match token.kind {
-            // Equality
-            TokenType::EqualEqual => BinOp::Equals,
-            TokenType::ShreakEquals => BinOp::NotEquals,
-            // Arithmetic
-	    TokenType::LeftAngle => BinOp::LessThan,
-            TokenType::LeftAngleEquals => BinOp::LessThanOrEquals,
-            TokenType::RightAngle => BinOp::GreaterThan,
-            TokenType::RightAngleEquals => BinOp::GreaterThanOrEquals,
-            // Logical
-            TokenType::AmpersandAmpersand => BinOp::LogicalAnd,
-            TokenType::BarBar => BinOp::LogicalOr,
-            // No match
-	    _ => { return None; }
-	};
-        Some(bop)
-    }
+    LogicalXor
 }
 
 // =============================================================================

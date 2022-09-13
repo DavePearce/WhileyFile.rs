@@ -4,9 +4,10 @@ pub mod parser;
 pub mod source_map;
 
 use std::result;
+use std::fmt;
 
 use crate::ast::AbstractSyntaxTree;
-use crate::lexer::{Token,TokenType};
+use crate::lexer::{Span,Token};
 use crate::parser::Parser;
 use crate::source_map::SourceMap;
 
@@ -21,24 +22,47 @@ pub enum ErrorCode {
     UnexpectedToken,
     UnexpectedEof,
     ExpectedLineEnd,
-    ExpectedToken(TokenType),
-    ExpectedTokenIn(Vec<TokenType>)
+    ExpectedToken(Token),
+    ExpectedTokenIn(Vec<Token>),
+    InvalidCharacterLiteral
 }
 
 /// Identifies possible errors stemming from the parser.
 #[derive(Debug)]
-pub struct Error<'a> {
-    pub token: Token<'a>,
+pub struct Error {
+    pub span: Span<Token>,
     pub code: ErrorCode
 }
 
-impl<'a> Error<'a> {
-    pub fn new(token: Token<'a>, code: ErrorCode) -> Error<'a> {
-	Error{token,code}
+impl Error {
+    pub fn new(span: Span<Token>, code: ErrorCode) -> Error {
+	Error{span,code}
     }
 }
 
-pub type Result<'a,T> = result::Result<T, Error<'a>>;
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // temporary for now.
+        write!(f,"{:?}",self)
+    }
+}
+
+impl std::error::Error for Error { }
+
+impl From<lexer::Error<Token>> for Error {
+    fn from(p:lexer::Error<Token>) -> Error {
+        match p {
+            lexer::Error::Expected(t,s) => {
+                Error{span:s,code:ErrorCode::ExpectedToken(t)}
+            }
+            lexer::Error::ExpectedIn(ts,s) => {
+                Error{span:s,code:ErrorCode::ExpectedTokenIn(ts)}
+            }
+        }
+    }
+}
+
+pub type Result<T> = result::Result<T, Error>;
 
 // ===============================================================
 // Whiley File
@@ -46,14 +70,14 @@ pub type Result<'a,T> = result::Result<T, Error<'a>>;
 
 pub struct WhileyFile {
     pub ast : Box<AbstractSyntaxTree>,
-    //pub source_map : HashMap<usize,Highlight>	
+    //pub source_map : HashMap<usize,Highlight>
 }
 
 impl WhileyFile {
-    pub fn from_str<'a>(input: &'a str) -> Result<'a,WhileyFile> {
+    pub fn from_str<'a>(input: &'a str) -> Result<WhileyFile> {
         let mut ast = AbstractSyntaxTree::new();
-	let mut mapper = SourceMap::new(input);
-	let mut parser = Parser::new(input, &mut ast, |i,s| mapper.map(i,s));
+	// let mut mapper = SourceMap::new(input);
+	let mut parser = Parser::new(input, &mut ast);
         let r = parser.parse();
 	// Parse entire file
 	match r {
@@ -64,5 +88,6 @@ impl WhileyFile {
                 Err(e)
             }
         }
+//        todo!("fix me");
     }
 }
