@@ -26,6 +26,7 @@ impl Expr {
 	    Node::BoolLiteral(_) => true,
 	    Node::CharLiteral(_) => true,
 	    Node::BinaryExpr(_) => true,
+	    Node::UnaryExpr(_) => true,
 	    Node::IntLiteral(_) => true,
 	    Node::LambdaLiteral(_) => true,
 	    Node::InvokeExpr(_) => true,
@@ -131,6 +132,23 @@ pub enum BinOp {
     LogicalAnd,
     LogicalOr,
     LogicalXor
+}
+
+// =============================================================================
+// Unary Expressions
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Unary(pub UnOp, pub Expr);
+
+impl From<Unary> for Node {
+    fn from(s: Unary) -> Self { Node::UnaryExpr(s) }
+}
+
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum UnOp {
+    LogicalNot,
+    Dereference
 }
 
 // =============================================================================

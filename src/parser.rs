@@ -6,6 +6,14 @@ use crate::ast::*;
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
 
+/// Defines the set of tokens which are considered to identify prefix
+/// operators (e.g. `!`, `*`, `'`. etc).
+pub const PREFIX_OPERATORS : &'static [Token] = &[
+    Token::Shreak,
+    Token::Star,
+    Token::Minus
+];
+
 /// Defines the set of tokens which are considered to identify logical
 /// connectives (e.g. `&&`, `||`, etc).
 pub const LOGICAL_CONNECTIVES : &'static [Token] = &[
@@ -503,7 +511,7 @@ impl<'a> Parser<'a> {
     /// level `0` corresponds simply to parsing a unary expression.
     pub fn parse_expr_binary(&mut self, level: usize) -> Result<Expr> {
         if level == 0 {
-            self.parse_expr_postfix()
+            self.parse_expr_prefix()
         } else {
             let tokens = BINARY_CONNECTIVES[level-1];
             // Parse level below
@@ -526,6 +534,27 @@ impl<'a> Parser<'a> {
                 Err(_) => {
                     Ok(lhs)
                 }
+            }
+        }
+    }
+
+    /// Parse a prefix (unary) expression.
+    pub fn parse_expr_prefix(&mut self) -> Result<Expr> {
+        // Check for prefix unary operator.
+    	let lookahead = self.lexer.snap_any(PREFIX_OPERATORS);
+        //
+        match lookahead {
+            Ok(t) => {
+	            let operand = self.parse_expr_prefix()?;
+                    // NOTE: following is safe because can only match
+                    // tokens which will be accepted.
+                    let uop = Self::unop_from_token(t.kind).unwrap();
+	            let node = Node::from(expr::Unary(uop,operand));
+	            Ok(Expr::new(self.ast,node))
+            }
+            _ => {
+                // no prefix operator!
+                self.parse_expr_postfix()
             }
         }
     }
@@ -1036,7 +1065,18 @@ impl<'a> Parser<'a> {
             Token::AmpersandAmpersand => BinOp::LogicalAnd,
             Token::BarBar => BinOp::LogicalOr,
             // No match
-	    _ => { return None; }
+	    _ => { unreachable!(); }
+	};
+        Some(bop)
+    }
+
+    /// Construct an `UnOp` from a `Token`.
+    fn unop_from_token(token: Token) -> Option<UnOp> {
+	let bop = match token {
+            // // Equality
+            Token::Shreak => UnOp::LogicalNot,
+            // No match
+	    _ => { unreachable!(); }
 	};
         Some(bop)
     }

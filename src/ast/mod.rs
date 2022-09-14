@@ -11,7 +11,7 @@ use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::{Decl};
-pub use self::expr::{BinOp,Expr};
+pub use self::expr::{BinOp,Expr,UnOp};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
 pub use self::comment::*;
@@ -48,6 +48,7 @@ pub enum Node {
     ArrayInitialiserExpr(expr::ArrayInitialiser),
     ArrayLengthExpr(expr::ArrayLength),
     BinaryExpr(expr::Binary),
+    UnaryExpr(expr::Unary),
     InvokeExpr(expr::Invoke),
     VarAccessExpr(expr::VarAccess),
     // Literals
