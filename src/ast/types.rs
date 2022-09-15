@@ -28,6 +28,7 @@ impl Type {
             Node::NullType(_) => true,
             Node::ReferenceType(_) => true,
             Node::RecordType(_) => true,
+            Node::UnionType(_) => true,
             Node::VoidType(_) => true,
             _ => false
         }
@@ -124,6 +125,17 @@ pub struct Reference(pub Type);
 
 impl From<Reference> for Node {
     fn from(s: Reference) -> Self { Node::ReferenceType(s) }
+}
+
+// =============================================================================
+// Union
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Union(pub Type, pub Type);
+
+impl From<Union> for Node {
+    fn from(s: Union) -> Self { Node::UnionType(s) }
 }
 
 // =============================================================================

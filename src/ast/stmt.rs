@@ -24,6 +24,7 @@ impl Stmt {
 	    Node::AssertStmt(_) => true,
 	    Node::AssumeStmt(_) => true,
 	    Node::BlockStmt(_) => true,
+	    Node::IfElseStmt(_) => true,
 	    Node::ReturnStmt(_) => true,
 	    Node::SkipStmt(_) => true,
 	    Node::VarDeclStmt(_) => true,
@@ -67,6 +68,17 @@ pub struct Block(pub Vec<Stmt>);
 
 impl From<Block> for Node {
     fn from(s: Block) -> Self { Node::BlockStmt(s) }
+}
+
+// =============================================================================
+// IfElse
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct IfElse(pub Expr, pub Stmt, pub Option<Stmt>);
+
+impl From<IfElse> for Node {
+    fn from(s: IfElse) -> Self { Node::IfElseStmt(s) }
 }
 
 // =============================================================================

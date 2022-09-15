@@ -136,7 +136,7 @@ fn test_type_17() {
 
 #[test]
 fn test_type_18() {
-    let ast = check_parse("type rar is (&u32)[]");
+    let ast = check_parse("type rar is ((&u32)[] r)");
     check_name(ast.get(0),"rar");
     assert_eq!(ast.get(1),&Node::from(types::Int(false,32)));
     assert_eq!(ast.get(2),&Node::from(types::Reference(Type(1))));

@@ -190,11 +190,30 @@ impl<'a> Parser<'a> {
         let name = self.parse_identifier()?;
         // "is"
         self.gap_snap(Token::Is)?;
-        let typ_e = self.parse_type()?;
+        let decl = self.parse_decl_type_decl()?;
         // Determine declaration end
         self.match_line_end()?;
         // Done
-        Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,typ_e))))
+        Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,decl))))
+    }
+
+    /// Parse either a variable declaration, or a type.
+    pub fn parse_decl_type_decl(&mut self) -> Result<decl::Parameter> {
+        // Skip any preceeding gap
+        self.skip_gap();
+        //
+        let (t,n) = if self.lexer.snap(Token::LeftBrace).is_ok() {
+	    let typ = self.parse_type()?;
+	    let name = self.parse_identifier()?;
+            self.gap_snap(Token::RightBrace);
+            (typ,name)
+        } else {
+            let typ = self.parse_type()?;
+            let name = Name::new(self.ast,"$".to_string());
+            (typ,name)
+        };
+        // Done
+        Ok(decl::Parameter{declared:t,name:n})
     }
 
     /// Parse a list of parameter declarations
@@ -400,16 +419,17 @@ impl<'a> Parser<'a> {
                 Ok(None)
             }
             // Match everything else!
-    	    _ => Ok(Some(self.parse_unit_stmt()?))
+    	    _ => Ok(Some(self.parse_unit_stmt(indent)?))
     	}
     }
-    fn parse_unit_stmt(&mut self) -> Result<Stmt> {
+    fn parse_unit_stmt(&mut self, indent : Span<Token>) -> Result<Stmt> {
         // Skip any leading whitespace
         self.skip_whitespace()?;
     	// Dispatch on lookahead
     	let stmt = match self.lexer.peek().kind {
     	    Token::Assert => self.parse_stmt_assert(),
     	    Token::Assume => self.parse_stmt_assume(),
+    	    Token::If => self.parse_stmt_ifelse(indent),
     	    Token::Return => self.parse_stmt_return(),
     	    Token::Skip => self.parse_stmt_skip(),
             _ => self.parse_stmt_vardecl()
@@ -431,6 +451,18 @@ impl<'a> Parser<'a> {
 	let tok = self.lexer.snap(Token::Assume)?;
 	let expr = self.parse_expr()?;
 	let stmt = Stmt::new(self.ast,Node::from(stmt::Assume(expr)));
+        self.finalise(stmt,tok)
+    }
+
+    pub fn parse_stmt_ifelse(&mut self, indent : Span<Token>) -> Result<Stmt> {
+	let tok = self.lexer.snap(Token::If)?;
+	let expr = self.parse_expr()?;
+        self.gap_snap(Token::Colon)?;
+        // Parse true block
+        let tt_block = self.parse_stmt_block(indent)?;
+        // FIXME: check for false block!
+        let stmt = Stmt::new(self.ast,Node::from(stmt::IfElse(expr,tt_block,None)));
+        // Done
         self.finalise(stmt,tok)
     }
 
@@ -742,7 +774,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse_type(&mut self) -> Result<Type> {
         self.skip_gap();
-	self.parse_type_compound()
+	self.parse_type_union()
     }
 
     /// Parse a sequence of zero or more types separated by comma's
@@ -772,6 +804,24 @@ impl<'a> Parser<'a> {
         }
         //
         Ok(types)
+    }
+
+    pub fn parse_type_union(&mut self) -> Result<Type> {
+        let mut lhs = self.parse_type_compound()?;
+        // Skip remaining whitespace (on this line)
+        self.skip_linespace();
+	// Check whether union connective follows
+    	let lookahead = self.lexer.peek();
+        //
+        if lookahead.kind == Token::Bar {
+            self.lexer.snap(Token::Bar);
+            // FIXME: turn this into a loop!
+	    let rhs = self.parse_type_union()?;
+	    let node = Node::from(types::Union(lhs,rhs));
+	    lhs = Type::new(self.ast,node)
+        }
+        //
+        Ok(lhs)
     }
 
     pub fn parse_type_compound(&mut self) -> Result<Type> {
