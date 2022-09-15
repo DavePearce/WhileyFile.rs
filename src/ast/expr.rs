@@ -67,7 +67,7 @@ impl From<IntLiteral> for Node {
 }
 
 #[derive(Clone,Debug,PartialEq)]
-pub struct LambdaLiteral(pub Name);
+pub struct LambdaLiteral(pub Name, pub Option<Vec<Type>>);
 
 impl From<LambdaLiteral> for Node {
     fn from(s: LambdaLiteral) -> Self { Node::LambdaLiteral(s) }

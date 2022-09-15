@@ -710,8 +710,19 @@ impl<'a> Parser<'a> {
 
     pub fn parse_literal_lambda(&mut self) -> Result<Expr> {
         let name = self.parse_identifier()?;
+        //
+	let lookahead = self.lexer.peek();
+        let params = match lookahead.kind {
+            Token::LeftBrace => {
+                let params = self.parse_braced_types()?;
+                Some(params)
+            }
+            _ => {
+                None
+            }
+        };
         // FIXME: support type parameters here
-        let expr = Expr::new(self.ast,Node::from(expr::LambdaLiteral(name)));
+        let expr = Expr::new(self.ast,Node::from(expr::LambdaLiteral(name,params)));
         //
         Ok(expr)
     }
@@ -732,6 +743,15 @@ impl<'a> Parser<'a> {
     pub fn parse_type(&mut self) -> Result<Type> {
         self.skip_gap();
 	self.parse_type_compound()
+    }
+
+    /// Parse a sequence of zero or more types separated by comma's
+    /// and surrounded with braces.
+    pub fn parse_braced_types(&mut self) -> Result<Vec<Type>> {
+        self.lexer.snap(Token::LeftBrace)?;
+        let params = self.parse_terminated_types(Token::RightBrace)?;
+        self.lexer.snap(Token::RightBrace)?;
+        Ok(params)
     }
 
     /// Parse a sequence of zero or more types separated by comma's
@@ -773,13 +793,9 @@ impl<'a> Parser<'a> {
     /// `function(int)->(int)`, etc.
     pub fn parse_type_function(&mut self) -> Result<Type> {
 	self.lexer.snap(Token::Function)?;
-        self.lexer.snap(Token::LeftBrace)?;
-        let params = self.parse_terminated_types(Token::RightBrace)?;
-        self.lexer.snap(Token::RightBrace)?;
+        let params = self.parse_braced_types()?;
         self.lexer.snap(Token::MinusGreater)?;
-        self.lexer.snap(Token::LeftBrace)?;
-        let returns = self.parse_terminated_types(Token::RightBrace)?;
-        self.lexer.snap(Token::RightBrace)?;
+        let returns = self.parse_braced_types()?;
         //
 	// Done
 	Ok(Type::new(self.ast,Node::from(types::Function(params,returns))))
