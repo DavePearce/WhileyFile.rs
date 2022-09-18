@@ -432,7 +432,7 @@ impl<'a> Parser<'a> {
     	    Token::If => self.parse_stmt_ifelse(indent),
     	    Token::Return => self.parse_stmt_return(),
     	    Token::Skip => self.parse_stmt_skip(),
-            _ => self.parse_stmt_vardecl()
+            _ => self.parse_stmt_headless()
         };
         // Match line end
         self.match_line_end()?;
@@ -440,11 +440,41 @@ impl<'a> Parser<'a> {
         stmt
     }
 
+    /// Parse a _headless_ statement.  That isA headless statement is one
+    /// which has no identifying keyword. The set of headless
+    /// statements include assignments, invocations, variable
+    /// declarations and named blocks.
+    pub fn parse_stmt_headless(&mut self) -> Result<Stmt> {
+        let offset = self.lexer.offset();
+        // First, attempt to parse a variable declaration.
+        let vardecl = self.parse_stmt_vardecl();
+        if vardecl.is_ok() { return vardecl; }
+        // Backtrack
+        self.lexer.reset(offset);
+        // Second, attempt to parse an assignment statement
+        let assignment = self.parse_stmt_assignment();
+        if assignment.is_ok() { return assignment; }
+        // Finally, must be a standalone expression
+        // TODO: fixme
+	return Err(Error::new(self.lexer.peek(),ErrorCode::UnexpectedToken));
+    }
+
     pub fn parse_stmt_assert(&mut self) -> Result<Stmt> {
 	let tok = self.lexer.snap(Token::Assert)?;
 	let expr = self.parse_expr()?;
 	let stmt = Stmt::new(self.ast,Node::from(stmt::Assert(expr)));
         self.finalise(stmt,tok)
+    }
+
+    pub fn parse_stmt_assignment(&mut self) -> Result<Stmt> {
+        // FIXME: process multi-assignment
+        let lhs = self.parse_lval()?;
+        self.gap_snap(Token::Equals);
+        let rhs = self.parse_expr()?;
+        // Allocate statement
+        let stmt = Stmt::new(self.ast, Node::from(stmt::Assignment(lhs,rhs)));
+        //
+        Ok(stmt)
     }
 
     pub fn parse_stmt_assume(&mut self) -> Result<Stmt> {
@@ -508,6 +538,37 @@ impl<'a> Parser<'a> {
         };
     	// Done
     	Ok(Stmt::new(self.ast,Node::from(stmt::VarDecl(vtype,name,expr))))
+    }
+
+    // =========================================================================
+    // LVals
+    // =========================================================================
+
+    pub fn parse_lval(&mut self) -> Result<LVal> {
+        let e = self.parse_expr()?;
+        let n = self.ast.get(e.into());
+        // Check whether expression is an lval (or not).
+        if LVal::is(self.ast,&n) { Ok(e.into()) }
+        else {
+            let lookahead = self.lexer.peek();
+            Err(Error::new(lookahead,ErrorCode::InvalidLVal))
+        }
+    }
+
+    pub fn parse_lval_term(&mut self) -> Result<LVal> {
+        // Skip whitespace
+        self.skip_whitespace()?;
+        //
+	let lookahead = self.lexer.peek();
+	//
+        let expr = match lookahead.kind {
+	    Token::Identifier => self.parse_expr_varaccess()?,
+	    _ => {
+		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
+	    }
+	};
+        // Done
+        Ok(expr.into())
     }
 
     // =========================================================================
@@ -637,6 +698,7 @@ impl<'a> Parser<'a> {
     	    Token::Integer => self.parse_literal_int(),
     	    Token::LeftBrace => self.parse_expr_bracketed(),
             Token::LeftSquare => self.parse_expr_arrayinitialiser(),
+    	    Token::Null => self.parse_literal_null(),
     	    Token::True => self.parse_literal_bool(),
             Token::String => self.parse_literal_string(),
 	    _ => {
@@ -756,6 +818,13 @@ impl<'a> Parser<'a> {
         // FIXME: support type parameters here
         let expr = Expr::new(self.ast,Node::from(expr::LambdaLiteral(name,params)));
         //
+        Ok(expr)
+    }
+
+    pub fn parse_literal_null(&mut self) -> Result<Expr> {
+        self.lexer.snap(Token::Null)?;
+        let expr = Expr::new(self.ast,Node::from(expr::NullLiteral()));
+        // Done
         Ok(expr)
     }
 

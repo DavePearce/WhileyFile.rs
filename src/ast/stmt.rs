@@ -22,6 +22,7 @@ impl Stmt {
     pub fn is(t: &Node) -> bool {
         match t {
 	    Node::AssertStmt(_) => true,
+	    Node::AssignStmt(_) => true,
 	    Node::AssumeStmt(_) => true,
 	    Node::BlockStmt(_) => true,
 	    Node::IfElseStmt(_) => true,
@@ -46,6 +47,17 @@ pub struct Assert(pub Expr);
 
 impl From<Assert> for Node {
     fn from(s: Assert) -> Self { Node::AssertStmt(s) }
+}
+
+// =============================================================================
+// Assignment
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Assignment(pub LVal, pub Expr);
+
+impl From<Assignment> for Node {
+    fn from(s: Assignment) -> Self { Node::AssignStmt(s) }
 }
 
 // =============================================================================

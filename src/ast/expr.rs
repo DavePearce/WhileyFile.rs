@@ -29,6 +29,7 @@ impl Expr {
 	    Node::UnaryExpr(_) => true,
 	    Node::IntLiteral(_) => true,
 	    Node::LambdaLiteral(_) => true,
+	    Node::NullLiteral(_) => true,
 	    Node::InvokeExpr(_) => true,
 	    Node::VarAccessExpr(_) => true,
 	    Node::StringLiteral(_) => true,
@@ -39,6 +40,13 @@ impl Expr {
 
 impl Into<usize> for Expr {
     fn into(self) -> usize { self.0 }
+}
+
+impl Into<LVal> for Expr {
+    fn into(self) -> LVal {
+        // FIXME: a check here would be nice.
+        LVal(self.0)
+    }
 }
 
 // =============================================================================
@@ -71,6 +79,13 @@ pub struct LambdaLiteral(pub Name, pub Option<Vec<Type>>);
 
 impl From<LambdaLiteral> for Node {
     fn from(s: LambdaLiteral) -> Self { Node::LambdaLiteral(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct NullLiteral();
+
+impl From<NullLiteral> for Node {
+    fn from(s: NullLiteral) -> Self { Node::NullLiteral(s) }
 }
 
 #[derive(Clone,Debug,PartialEq)]

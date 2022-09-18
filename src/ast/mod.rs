@@ -1,6 +1,7 @@
 // Hidden
 pub mod decl;
 pub mod expr;
+pub mod lval;
 pub mod stmt;
 pub mod types;
 pub mod comment;
@@ -12,6 +13,7 @@ use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::{Decl};
 pub use self::expr::{BinOp,Expr,UnOp};
+pub use self::lval::{LVal};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
 pub use self::comment::*;
@@ -38,6 +40,7 @@ pub enum Node {
     MethodDecl(decl::Method),
     // Statements
     AssertStmt(stmt::Assert),
+    AssignStmt(stmt::Assignment),
     AssumeStmt(stmt::Assume),
     BlockStmt(stmt::Block),
     IfElseStmt(stmt::IfElse),
@@ -57,6 +60,7 @@ pub enum Node {
     CharLiteral(expr::CharLiteral),
     IntLiteral(expr::IntLiteral),
     LambdaLiteral(expr::LambdaLiteral),
+    NullLiteral(expr::NullLiteral),
     StringLiteral(expr::StringLiteral),
     // Types
     ArrayType(types::Array),

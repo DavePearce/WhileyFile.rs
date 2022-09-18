@@ -430,6 +430,10 @@ impl Lexer {
     }
 
     /// Pass through request to underlying lexer
+    pub fn offset(&self) -> usize { self.lexer.offset() }
+    /// Pass through request to underlying lexer
+    pub fn reset(&mut self, offset: usize) { self.lexer.reset(offset); }
+    /// Pass through request to underlying lexer
     pub fn is_eof(&self) -> bool { self.lexer.is_eof() }
     /// Pass through request to underlying lexer
     pub fn peek(&self) -> Span<Token> { self.lexer.peek() }
