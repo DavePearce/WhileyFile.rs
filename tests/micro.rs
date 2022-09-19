@@ -2,6 +2,7 @@ use whiley_file::WhileyFile;
 use whiley_file::ast::*;
 use whiley_file::ast::decl::{Clause,Parameter};
 use whiley_file::parser::Parser;
+use whiley_file::type_checker::TypeChecker;
 
 // ======================================================
 // Tests (Type Declarations)
@@ -692,11 +693,12 @@ fn check_parse(input: &str) -> Box<AbstractSyntaxTree> {
     let mut wf = WhileyFile::from_str(input);
     assert!(!wf.is_err());
     // Type input
-    // let mut typer = TypeChecker::new(&mut ast, type_mapper);
-    // let r = typer.check(d.unwrap());
+    let mut ast = wf.unwrap().ast;
+    let mut typer = TypeChecker::new(ast.as_mut());
+    let r = typer.check_all();
     // assert!(!r.is_err());
     // Done
-    wf.unwrap().ast
+    ast
 }
 
 #[cfg(test)]
