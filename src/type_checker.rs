@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use syntactic_heap::SyntacticHeap;
+use syntactic_heap::Ref;
+
 use crate::Error;
 use crate::ast::*;
 
@@ -9,6 +12,12 @@ use crate::ast::*;
 pub type Result<T> = std::result::Result<T, Error>;
 
 // =================================================================
+// Typing
+// =================================================================
+
+pub type Typing = SyntacticHeap<Types>;
+
+// =================================================================
 // Type Checker
 // =================================================================
 
@@ -16,13 +25,15 @@ pub type Env = HashMap<String, Type>;
 
 pub struct TypeChecker<'a> {
     globals: Env,
-    ast: &'a mut AbstractSyntaxTree
+    typing: Typing,
+    ast: &'a AbstractSyntaxTree
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(ast: &'a mut AbstractSyntaxTree) -> Self {
+    pub fn new(ast: &'a AbstractSyntaxTree) -> Self {
         let globals : Env = HashMap::new();
-	TypeChecker{globals,ast}
+        let typing = Typing::new();
+	TypeChecker{globals,typing,ast}
     }
 
     pub fn check_all(&mut self) {
@@ -42,11 +53,11 @@ impl<'a> TypeChecker<'a> {
             Node::AssertStmt(s) => self.check_stmt_assert(&s),
             Node::AssignStmt(s) => self.check_stmt_assignment(&s),
             Node::AssumeStmt(s) => self.check_stmt_assume(&s),
-            // BlockStmt(stmt::Block),
-            // IfElseStmt(stmt::IfElse),
-            // ReturnStmt(stmt::Return),
-            // SkipStmt(stmt::Skip),
-            // VarDeclStmt(stmt::VarDecl),
+            Node::BlockStmt(s) => self.check_stmt_block(&s),
+            Node::IfElseStmt(s) => self.check_stmt_ifelse(&s),
+            Node::ReturnStmt(s) => self.check_stmt_return(&s),
+            Node::SkipStmt(s) => self.check_stmt_skip(&s),
+            Node::VarDeclStmt(s) => self.check_stmt_vardecl(&s),
             // // Expressions
             // ArrayAccessExpr(expr::ArrayAccess),
             // ArrayGeneratorExpr(expr::ArrayGenerator),
@@ -89,31 +100,68 @@ impl<'a> TypeChecker<'a> {
     // Declarations
     // =============================================================================
 
-    pub fn check_decl_type(&self, d: &decl::Type) {
+    pub fn check_decl_type(&mut self, d: &decl::Type) {
         todo!("check_decl_type");
     }
 
-    pub fn check_decl_function(&self, d: &decl::Function) {
-        todo!("check_decl_function");
+    pub fn check_decl_function(&mut self, d: &decl::Function) {
+        for p in &d.parameters {
+            self.check(p.declared);
+        }
+        for r in &d.returns {
+            self.check(r.declared);
+        }
+        for c in &d.clauses {
+            self.check_clause(c);
+        }
+        self.check(d.body);
     }
 
-    pub fn check_decl_method(&self, d: &decl::Method) {
+    pub fn check_decl_method(&mut self, d: &decl::Method) {
         todo!("check_decl_method");
+    }
+
+    // =============================================================================
+    // Specification
+    // =============================================================================
+
+    pub fn check_clause(&mut self, d: &decl::Clause) {
+        todo!("check_clause");
     }
 
     // =============================================================================
     // Statements
     // =============================================================================
 
-    pub fn check_stmt_assert(&self, d: &stmt::Assert) {
+    pub fn check_stmt_assert(&mut self, d: &stmt::Assert) {
         todo!("check_stmt_assert");
     }
 
-    pub fn check_stmt_assignment(&self, d: &stmt::Assignment) {
+    pub fn check_stmt_assignment(&mut self, d: &stmt::Assignment) {
         todo!("check_stmt_assign");
     }
 
-    pub fn check_stmt_assume(&self, d: &stmt::Assume) {
+    pub fn check_stmt_assume(&mut self, d: &stmt::Assume) {
         todo!("check_stmt_assume");
+    }
+
+    pub fn check_stmt_block(&mut self, d: &stmt::Block) {
+        todo!("check_stmt_block");
+    }
+
+    pub fn check_stmt_ifelse(&mut self, d: &stmt::IfElse) {
+        todo!("check_stmt_ifelse");
+    }
+
+    pub fn check_stmt_return(&mut self, d: &stmt::Return) {
+        todo!("check_stmt_return");
+    }
+
+    pub fn check_stmt_skip(&mut self, d: &stmt::Skip) {
+        todo!("check_stmt_skip");
+    }
+
+    pub fn check_stmt_vardecl(&mut self, d: &stmt::VarDecl) {
+        todo!("check_stmt_vardecl");
     }
 }

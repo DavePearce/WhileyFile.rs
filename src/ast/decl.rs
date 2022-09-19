@@ -46,9 +46,9 @@ impl Into<usize> for Decl {
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct Type {
-    modifiers: Vec<Modifier>,
-    name: Name,
-    pattern: decl::Parameter
+    pub modifiers: Vec<Modifier>,
+    pub name: Name,
+    pub pattern: decl::Parameter
 }
 
 impl Type {
@@ -67,12 +67,12 @@ impl From<Type> for Node {
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct Function {
-    modifiers: Vec<Modifier>,
-    name: Name,
-    parameters: Vec<Parameter>,
-    returns: Vec<Parameter>,
-    clauses: Vec<Clause>,
-    body:Stmt
+    pub modifiers: Vec<Modifier>,
+    pub name: Name,
+    pub parameters: Vec<Parameter>,
+    pub returns: Vec<Parameter>,
+    pub clauses: Vec<Clause>,
+    pub body:Stmt
 }
 
 impl Function {

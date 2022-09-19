@@ -79,6 +79,20 @@ pub enum Node {
     VoidType(types::Void)
 }
 
+#[derive(Clone,Debug,PartialEq)]
+pub enum Types {
+    ArrayType(types::Array),
+    BoolType(types::Bool),
+    FunctionType(types::Function),
+    IntType(types::Int),
+    NominalType(types::Nominal),
+    NullType(types::Null),
+    RecordType(types::Record),
+    ReferenceType(types::Reference),
+    UnionType(types::Union),
+    VoidType(types::Void)
+}
+
 // =============================================================================
 // Names
 // =============================================================================

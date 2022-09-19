@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod lexer;
 pub mod parser;
+pub mod syntactic_fn;
 pub mod type_checker;
 pub mod source_map;
 
