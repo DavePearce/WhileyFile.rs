@@ -7,6 +7,7 @@ use delta_inc::lex;
 // =================================================================
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Token {
+    All,
     Ampersand,
     AmpersandAmpersand,
     Assert,
@@ -24,6 +25,7 @@ pub enum Token {
     Default,
     Do,
     Dot,
+    DotDot,
     Delete,
     Else,
     Ensures,
@@ -38,8 +40,9 @@ pub enum Token {
     Function,
     Gap,
     Identifier,
-    Is,
     If,
+    In,
+    Is,
     Int(u8),
     Integer,
     LeftAngle,
@@ -87,6 +90,7 @@ pub enum Token {
 // Rules
 // ======================================================
 
+const ALL : &'static [char] = &['a','l','l'];
 const ASSERT : &'static [char] = &['a','s','s','e','r','t'];
 const ASSUME : &'static [char] = &['a','s','s','u','m','e'];
 const BOOL : &'static [char] = &['b','o','o','l'];
@@ -106,6 +110,7 @@ const FINAL : &'static [char] = &['f','i','n','a','l'];
 const FUNCTION : &'static [char] = &['f','u','n','c','t','i','o','n'];
 const IF : &'static [char] = &['i','f'];
 const IS : &'static [char] = &['i','s'];
+const IN : &'static [char] = &['i','n'];
 const INT : &'static [char] = &['i','n','t'];
 const I8 : &'static [char] = &['i','8'];
 const I16 : &'static [char] = &['i','1','6'];
@@ -152,6 +157,7 @@ fn scan_keyword(input: &[char]) -> ScannerResult {
         let r = scan_whilst(input, Token::Gap, is_identifier_middle)?;
         // Attempt to match it
         let t = match &input[r.range()] {
+	    ALL => Token::All,
 	    ASSERT => Token::Assert,
 	    ASSUME => Token::Assume,
 	    BOOL => Token::Bool,
@@ -170,6 +176,7 @@ fn scan_keyword(input: &[char]) -> ScannerResult {
             FINAL => Token::Final,
             FUNCTION => Token::Function,
             IF => Token::If,
+            IN => Token::In,
             IS => Token::Is,
             INT => Token::Int(0),
 	    I8 => Token::Int(8),
@@ -256,6 +263,7 @@ fn scan_double_operators(input: &[char]) -> ScannerResult {
         let t = match (input[0], input[1]) {
             ('&','&') => Token::AmpersandAmpersand,
             ('|','|') => Token::BarBar,
+            ('.','.') => Token::DotDot,
             ('=','=') => Token::EqualsEquals,
             ('<','=') => Token::LeftAngleEquals,
             ('-','>') => Token::MinusGreater,
@@ -429,6 +437,10 @@ impl Lexer {
         self.lexer.get(t)
     }
 
+    /// Pass through request to underlying lexer
+    pub fn offset(&self) -> usize { self.lexer.offset() }
+    /// Pass through request to underlying lexer
+    pub fn reset(&mut self, offset: usize) { self.lexer.reset(offset); }
     /// Pass through request to underlying lexer
     pub fn is_eof(&self) -> bool { self.lexer.is_eof() }
     /// Pass through request to underlying lexer

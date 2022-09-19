@@ -6,6 +6,14 @@ use crate::ast::*;
 /// The parsing environment maps raw strings to on-tree names.
 type Env = HashMap<String, Name>;
 
+/// Defines the set of tokens which are considered to identify prefix
+/// operators (e.g. `!`, `*`, `'`. etc).
+pub const PREFIX_OPERATORS : &'static [Token] = &[
+    Token::Shreak,
+    Token::Star,
+    Token::Minus
+];
+
 /// Defines the set of tokens which are considered to identify logical
 /// connectives (e.g. `&&`, `||`, etc).
 pub const LOGICAL_CONNECTIVES : &'static [Token] = &[
@@ -182,11 +190,30 @@ impl<'a> Parser<'a> {
         let name = self.parse_identifier()?;
         // "is"
         self.gap_snap(Token::Is)?;
-        let typ_e = self.parse_type()?;
+        let decl = self.parse_decl_type_decl()?;
         // Determine declaration end
         self.match_line_end()?;
         // Done
-        Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,typ_e))))
+        Ok(Decl::new(self.ast,Node::from(decl::Type::new(modifiers,name,decl))))
+    }
+
+    /// Parse either a variable declaration, or a type.
+    pub fn parse_decl_type_decl(&mut self) -> Result<decl::Parameter> {
+        // Skip any preceeding gap
+        self.skip_gap();
+        //
+        let (t,n) = if self.lexer.snap(Token::LeftBrace).is_ok() {
+	    let typ = self.parse_type()?;
+	    let name = self.parse_identifier()?;
+            self.gap_snap(Token::RightBrace);
+            (typ,name)
+        } else {
+            let typ = self.parse_type()?;
+            let name = Name::new(self.ast,"$".to_string());
+            (typ,name)
+        };
+        // Done
+        Ok(decl::Parameter{declared:t,name:n})
     }
 
     /// Parse a list of parameter declarations
@@ -330,7 +357,7 @@ impl<'a> Parser<'a> {
         // Determine indentation level for this block
     	let nindent = self.determine_block_indent(indent)?;
     	// Parse remaining statements at same indent
-        while self.chars_match(self.lexer.peek(),nindent) {
+        while self.matches(self.lexer.peek(),nindent) {
             // Attempt to parse statement
             match self.parse_stmt(nindent)? {
                 Some(stmt) => stmts.push(stmt),
@@ -354,10 +381,8 @@ impl<'a> Parser<'a> {
                 self.determine_block_indent(indent)
             }
             Token::Gap => {
-                let indent_chars = self.lexer.get(indent);
-                let nindent = self.lexer.get(lookahead);
                 // Sanity check indentation
-                if !nindent.starts_with(indent_chars) || indent_chars.len() == nindent.len() {
+                if !self.prefix_of(indent,lookahead) || self.matches(indent,lookahead) {
     	            // Parent indent not a strict prefix of current indent.
                     return Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent));
                 }
@@ -378,7 +403,7 @@ impl<'a> Parser<'a> {
         // Parse indentation
         let nindent = self.lexer.snap(Token::Gap)?;
         // Sanity check indentation
-        if !self.chars_match(nindent,indent) {
+        if !self.matches(nindent,indent) {
     	    // Parent indent not a strict prefix of current indent.
             return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
         }
@@ -392,24 +417,44 @@ impl<'a> Parser<'a> {
                 Ok(None)
             }
             // Match everything else!
-    	    _ => Ok(Some(self.parse_unit_stmt()?))
+    	    _ => Ok(Some(self.parse_unit_stmt(indent)?))
     	}
     }
-    fn parse_unit_stmt(&mut self) -> Result<Stmt> {
+    fn parse_unit_stmt(&mut self, indent : Span<Token>) -> Result<Stmt> {
         // Skip any leading whitespace
         self.skip_whitespace()?;
     	// Dispatch on lookahead
     	let stmt = match self.lexer.peek().kind {
     	    Token::Assert => self.parse_stmt_assert(),
     	    Token::Assume => self.parse_stmt_assume(),
+    	    Token::If => self.parse_stmt_ifelse(indent),
     	    Token::Return => self.parse_stmt_return(),
     	    Token::Skip => self.parse_stmt_skip(),
-            _ => self.parse_stmt_vardecl()
+            _ => self.parse_stmt_headless()
         };
         // Match line end
         self.match_line_end()?;
         // Done
         stmt
+    }
+
+    /// Parse a _headless_ statement.  That isA headless statement is one
+    /// which has no identifying keyword. The set of headless
+    /// statements include assignments, invocations, variable
+    /// declarations and named blocks.
+    pub fn parse_stmt_headless(&mut self) -> Result<Stmt> {
+        let offset = self.lexer.offset();
+        // First, attempt to parse a variable declaration.
+        let vardecl = self.parse_stmt_vardecl();
+        if vardecl.is_ok() { return vardecl; }
+        // Backtrack
+        self.lexer.reset(offset);
+        // Second, attempt to parse an assignment statement
+        let assignment = self.parse_stmt_assignment();
+        if assignment.is_ok() { return assignment; }
+        // Finally, must be a standalone expression
+        // TODO: fixme
+	return Err(Error::new(self.lexer.peek(),ErrorCode::UnexpectedToken));
     }
 
     pub fn parse_stmt_assert(&mut self) -> Result<Stmt> {
@@ -419,11 +464,65 @@ impl<'a> Parser<'a> {
         self.finalise(stmt,tok)
     }
 
+    pub fn parse_stmt_assignment(&mut self) -> Result<Stmt> {
+        // FIXME: process multi-assignment
+        let lhs = self.parse_lval()?;
+        self.gap_snap(Token::Equals);
+        let rhs = self.parse_expr()?;
+        // Allocate statement
+        let stmt = Stmt::new(self.ast, Node::from(stmt::Assignment(lhs,rhs)));
+        //
+        Ok(stmt)
+    }
+
     pub fn parse_stmt_assume(&mut self) -> Result<Stmt> {
 	let tok = self.lexer.snap(Token::Assume)?;
 	let expr = self.parse_expr()?;
 	let stmt = Stmt::new(self.ast,Node::from(stmt::Assume(expr)));
         self.finalise(stmt,tok)
+    }
+
+    pub fn parse_stmt_ifelse(&mut self, indent : Span<Token>) -> Result<Stmt> {
+	let tok = self.lexer.snap(Token::If)?;
+	let expr = self.parse_expr()?;
+        self.gap_snap(Token::Colon)?;
+        self.lexer.snap(Token::NewLine)?;
+        // Parse true block
+        let tt_block = self.parse_stmt_block(indent)?;
+        // Parse false block (if applicable)
+        let lookehead = self.lexer.peek();
+        let mut ff_block = None;
+        // Attempt to parse else block or if-else chain.
+        if self.snap_optional_else(indent) {
+            // Check if-else or just else
+            if self.lexer.snap(Token::Colon).is_ok() {
+                // just else
+                self.match_line_end()?;
+                ff_block = Some(self.parse_stmt_block(indent)?);
+            } else {
+                // must be else-if
+                self.skip_gap();
+                ff_block = Some(self.parse_stmt_ifelse(indent)?);
+            }
+        }
+        let stmt = Stmt::new(self.ast,Node::from(stmt::IfElse(expr,tt_block,ff_block)));
+        // Done
+        self.finalise(stmt,tok)
+    }
+
+    /// Snap an (optional) `else` keword.
+    pub fn snap_optional_else(&mut self, indent : Span<Token>) -> bool {
+        // Preserve position to enable back track.
+        let offset = self.lexer.offset();
+        let l = self.lexer.peek();
+        //
+        if l.kind == Token::Gap && self.matches(l,indent) && self.gap_snap(Token::Else).is_ok() {
+            true
+        } else {
+            // Backtrack
+            self.lexer.reset(offset);
+            false
+        }
     }
 
     pub fn parse_stmt_return(&mut self) -> Result<Stmt> {
@@ -471,6 +570,37 @@ impl<'a> Parser<'a> {
     }
 
     // =========================================================================
+    // LVals
+    // =========================================================================
+
+    pub fn parse_lval(&mut self) -> Result<LVal> {
+        let e = self.parse_expr()?;
+        let n = self.ast.get(e.into());
+        // Check whether expression is an lval (or not).
+        if LVal::is(self.ast,&n) { Ok(e.into()) }
+        else {
+            let lookahead = self.lexer.peek();
+            Err(Error::new(lookahead,ErrorCode::InvalidLVal))
+        }
+    }
+
+    pub fn parse_lval_term(&mut self) -> Result<LVal> {
+        // Skip whitespace
+        self.skip_whitespace()?;
+        //
+	let lookahead = self.lexer.peek();
+	//
+        let expr = match lookahead.kind {
+	    Token::Identifier => self.parse_expr_varaccess()?,
+	    _ => {
+		return Err(Error::new(lookahead,ErrorCode::UnexpectedToken));
+	    }
+	};
+        // Done
+        Ok(expr.into())
+    }
+
+    // =========================================================================
     // Expressions
     // =========================================================================
 
@@ -503,7 +633,7 @@ impl<'a> Parser<'a> {
     /// level `0` corresponds simply to parsing a unary expression.
     pub fn parse_expr_binary(&mut self, level: usize) -> Result<Expr> {
         if level == 0 {
-            self.parse_expr_postfix()
+            self.parse_expr_prefix()
         } else {
             let tokens = BINARY_CONNECTIVES[level-1];
             // Parse level below
@@ -530,15 +660,49 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse a prefix (unary) expression.
+    pub fn parse_expr_prefix(&mut self) -> Result<Expr> {
+        // Check for prefix unary operator.
+    	let lookahead = self.lexer.snap_any(PREFIX_OPERATORS);
+        //
+        match lookahead {
+            Ok(t) => {
+	            let operand = self.parse_expr_prefix()?;
+                    // NOTE: following is safe because can only match
+                    // tokens which will be accepted.
+                    let uop = Self::unop_from_token(t.kind).unwrap();
+	            let node = Node::from(expr::Unary(uop,operand));
+	            Ok(Expr::new(self.ast,node))
+            }
+            _ => {
+                // no prefix operator!
+                self.parse_expr_postfix()
+            }
+        }
+    }
+
     pub fn parse_expr_postfix(&mut self) -> Result<Expr> {
         let mut expr = self.parse_expr_term()?;
         // Check for postfix unary operator.
     	let lookahead = self.lexer.peek();
     	// FIXME: managed nested operators
         match lookahead.kind {
+            Token::DotDot => self.parse_expr_range(expr),
             Token::LeftSquare => self.parse_expr_arrayaccess(expr),
             Token::LeftBrace => self.parse_expr_invoke(expr),
-            _ => Ok(expr)
+            Token::Is => self.parse_expr_istype(expr),
+            Token::Gap => {
+                self.skip_gap();
+                // Check for type test.
+                if self.lexer.peek().kind == Token::Is {
+                    self.parse_expr_istype(expr)
+                } else {
+                    Ok(expr)
+                }
+            }
+            _ => {
+                Ok(expr)
+            }
         }
     }
 
@@ -561,6 +725,25 @@ impl<'a> Parser<'a> {
         self.finalise(expr,tok)
     }
 
+    /// Parse a _type test expression_ of the form `e is T`, where `T`
+    /// is an arbitrary type.
+    pub fn parse_expr_istype(&mut self, lhs: Expr) -> Result<Expr> {
+	self.gap_snap(Token::Is)?;
+        let rhs = self.parse_type()?;
+    	let expr = Expr::new(self.ast,Node::from(expr::IsType(lhs,rhs)));
+        //
+        Ok(expr)
+    }
+
+    /// Parse _range expression_ of the form `e1 .. e2`.
+    pub fn parse_expr_range(&mut self, lhs: Expr) -> Result<Expr> {
+        self.gap_snap(Token::DotDot);
+        let rhs = self.parse_expr()?;
+        let expr = Expr::new(self.ast,Node::from(expr::Range(lhs,rhs)));
+        //
+        Ok(expr)
+    }
+
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
         // Skip whitespace
         self.skip_whitespace()?;
@@ -568,13 +751,16 @@ impl<'a> Parser<'a> {
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
+            Token::All => self.parse_expr_quantifier(),
+    	    Token::Ampersand => self.parse_expr_lambda(),
     	    Token::Bar => self.parse_expr_arraylength(),
     	    Token::Character => self.parse_literal_char(),
     	    Token::False => self.parse_literal_bool(),
 	    Token::Identifier => self.parse_expr_varaccess(),
     	    Token::Integer => self.parse_literal_int(),
     	    Token::LeftBrace => self.parse_expr_bracketed(),
-            Token::LeftSquare => self.parse_expr_arrayinitialiser(),
+            Token::LeftSquare => self.parse_expr_arraygenerator_or_initialiser(),
+    	    Token::Null => self.parse_literal_null(),
     	    Token::True => self.parse_literal_bool(),
             Token::String => self.parse_literal_string(),
 	    _ => {
@@ -583,11 +769,66 @@ impl<'a> Parser<'a> {
 	}
     }
 
-    /// Parse a variable access expression.
-    pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
-        let tok = self.lexer.peek();
-	let n = self.parse_identifier();
-	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
+    pub fn parse_expr_arraygenerator_or_initialiser(&mut self) -> Result<Expr> {
+        // Preserve offset to enable backtracking.
+        let offset = self.lexer.offset();
+        //
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+        self.skip_gap();
+        let mut lookahead = self.lexer.peek();
+        if lookahead.kind == Token::RightSquare {
+            self.lexer.reset(offset);
+            self.parse_expr_arrayinitialiser()
+        } else {
+            let first = self.parse_expr()?;
+            // Check whether its a generator or initialiser
+            self.skip_gap();
+            lookahead = self.lexer.peek();
+            // Backtrack
+            self.lexer.reset(offset);
+            //
+            if lookahead.kind == Token::SemiColon {
+                // Generator
+                self.lexer.reset(offset);
+                self.parse_expr_arraygenerator()
+            } else {
+                // Initialiser
+                self.parse_expr_arrayinitialiser()
+            }
+        }
+    }
+
+    /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
+    /// `[e1,e2]`, etc.
+    pub fn parse_expr_arraygenerator(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+        let first = self.parse_expr()?;
+        self.lexer.snap(Token::SemiColon);
+        let second = self.parse_expr()?;
+        self.lexer.snap(Token::RightSquare)?;
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayGenerator(first,second)));
+        //
+        self.finalise(expr,tok)
+    }
+
+    /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
+    /// `[e1,e2]`, etc.
+    pub fn parse_expr_arrayinitialiser(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+    	let mut exprs = self.parse_terminated_exprs(Token::RightSquare)?;
+    	self.lexer.snap(Token::RightSquare)?;
+    	//
+    	let expr = Expr::new(self.ast, Node::from(expr::ArrayInitialiser(exprs)));
+        self.finalise(expr,tok)
+    }
+
+    /// Parse an _array length_ expression of the form `|e|`.
+    pub fn parse_expr_arraylength(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::Bar)?;
+    	let expr = self.parse_expr()?;
+    	self.lexer.snap(Token::Bar)?;
+    	//
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayLength(expr)));
         self.finalise(expr,tok)
     }
 
@@ -599,24 +840,48 @@ impl<'a> Parser<'a> {
         expr
     }
 
-    /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
-    /// `[e1,e2]`, etc.
-    pub fn parse_expr_arrayinitialiser(&mut self) -> Result<Expr> {
-    	let tok = self.lexer.snap(Token::LeftSquare)?;
-    	let exprs = self.parse_terminated_exprs(Token::RightSquare)?;
-    	self.lexer.snap(Token::RightSquare)?;
-    	//
-    	let expr = Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs)));
-        self.finalise(expr,tok)
+    /// Parse a _lambda expression_ such as `&f`, `&(int x -> x)`,
+    /// etc.
+    pub fn parse_expr_lambda(&mut self) -> Result<Expr> {
+	self.lexer.snap(Token::Ampersand)?;
+        //
+        if self.lexer.peek().kind == Token::LeftBrace {
+            self.parse_expr_lambda_initialiser()
+        } else {
+            self.parse_literal_lambda()
+        }
     }
 
-    /// Parse an _array length_ expression of the form `|e|`.
-    pub fn parse_expr_arraylength(&mut self) -> Result<Expr> {
-    	let tok = self.lexer.snap(Token::Bar)?;
-    	let expr = self.parse_expr()?;
-    	self.lexer.snap(Token::Bar)?;
-    	//
-    	let expr = Expr::new(self.ast,Node::from(expr::ArrayLength(expr)));
+    pub fn parse_expr_lambda_initialiser(&mut self) -> Result<Expr> {
+        todo!("Parse lambda initialiser");
+    }
+
+    pub fn parse_expr_quantifier(&mut self) -> Result<Expr> {
+        self.lexer.snap(Token::All)?;
+        self.gap_snap(Token::LeftCurly)?;
+        // Parse parameters
+        let mut vars = Vec::new();
+        loop {
+            let name = self.parse_identifier()?;
+            self.gap_snap(Token::In)?;
+            let range = self.parse_expr()?;
+            vars.push((name,range));
+            if self.gap_snap(Token::Comma).is_err() { break; }
+        }
+        //
+        self.gap_snap(Token::Bar)?;
+        let expr = self.parse_expr()?;
+        self.gap_snap(Token::RightCurly)?;
+        // Done.
+        let expr = Expr::new(self.ast,Node::from(expr::Quantifier(QuantOp::All,vars,expr)));
+        Ok(expr)
+    }
+
+    /// Parse a variable access expression.
+    pub fn parse_expr_varaccess(&mut self) -> Result<Expr> {
+        let tok = self.lexer.peek();
+	let n = self.parse_identifier();
+	let expr = Expr::new(self.ast,Node::from(expr::VarAccess(n.unwrap())));
         self.finalise(expr,tok)
     }
 
@@ -662,6 +927,32 @@ impl<'a> Parser<'a> {
         self.finalise(expr,tok)
     }
 
+    pub fn parse_literal_lambda(&mut self) -> Result<Expr> {
+        let name = self.parse_identifier()?;
+        //
+	let lookahead = self.lexer.peek();
+        let params = match lookahead.kind {
+            Token::LeftBrace => {
+                let params = self.parse_braced_types()?;
+                Some(params)
+            }
+            _ => {
+                None
+            }
+        };
+        // FIXME: support type parameters here
+        let expr = Expr::new(self.ast,Node::from(expr::LambdaLiteral(name,params)));
+        //
+        Ok(expr)
+    }
+
+    pub fn parse_literal_null(&mut self) -> Result<Expr> {
+        self.lexer.snap(Token::Null)?;
+        let expr = Expr::new(self.ast,Node::from(expr::NullLiteral()));
+        // Done
+        Ok(expr)
+    }
+
     /// Parse a _string literal_ (e.g. `"hello"`, `"world\n"`), whilst
     /// parsing all valid escape sequences.
     pub fn parse_literal_string(&mut self) -> Result<Expr> {
@@ -677,7 +968,54 @@ impl<'a> Parser<'a> {
 
     pub fn parse_type(&mut self) -> Result<Type> {
         self.skip_gap();
-	self.parse_type_compound()
+	self.parse_type_union()
+    }
+
+    /// Parse a sequence of zero or more types separated by comma's
+    /// and surrounded with braces.
+    pub fn parse_braced_types(&mut self) -> Result<Vec<Type>> {
+        self.lexer.snap(Token::LeftBrace)?;
+        let params = self.parse_terminated_types(Token::RightBrace)?;
+        self.lexer.snap(Token::RightBrace)?;
+        Ok(params)
+    }
+
+    /// Parse a sequence of zero or more types separated by comma's
+    /// and terminated with a given token type.  This is useful, for
+    /// example, for parsing arguments lists.  Note, this does *not*
+    /// consume the terminator.
+    pub fn parse_terminated_types(&mut self, terminator: Token) -> Result<Vec<Type>> {
+        let mut types = Vec::new();
+        // Since terminator is expected, can skip arbitrary whitespace.
+        self.skip_whitespace()?;
+        // Continue until reached terminator
+        while self.lexer.peek().kind != terminator {
+            if types.len() > 0 {
+                self.lexer.snap(Token::Comma)?;
+            }
+            types.push(self.parse_type()?);
+            self.skip_whitespace()?;
+        }
+        //
+        Ok(types)
+    }
+
+    pub fn parse_type_union(&mut self) -> Result<Type> {
+        let mut lhs = self.parse_type_compound()?;
+        // Skip remaining whitespace (on this line)
+        self.skip_linespace();
+	// Check whether union connective follows
+    	let lookahead = self.lexer.peek();
+        //
+        if lookahead.kind == Token::Bar {
+            self.lexer.snap(Token::Bar);
+            // FIXME: turn this into a loop!
+	    let rhs = self.parse_type_union()?;
+	    let node = Node::from(types::Union(lhs,rhs));
+	    lhs = Type::new(self.ast,node)
+        }
+        //
+        Ok(lhs)
     }
 
     pub fn parse_type_compound(&mut self) -> Result<Type> {
@@ -689,9 +1027,22 @@ impl<'a> Parser<'a> {
         	Err(Error::new(lookahead,ErrorCode::UnexpectedEof))
             }
             Token::Ampersand => self.parse_type_ref(),
+            Token::Function => self.parse_type_function(),
             Token::LeftCurly => self.parse_type_record(),
             _ => self.parse_type_array()
         }
+    }
+
+    /// Parse a function type such as `function()->()`,
+    /// `function(int)->(int)`, etc.
+    pub fn parse_type_function(&mut self) -> Result<Type> {
+	self.lexer.snap(Token::Function)?;
+        let params = self.parse_braced_types()?;
+        self.lexer.snap(Token::MinusGreater)?;
+        let returns = self.parse_braced_types()?;
+        //
+	// Done
+	Ok(Type::new(self.ast,Node::from(types::Function(params,returns))))
     }
 
     /// Parse a reference type, such as `&i32`, `&(i32[])`, `&&u16`,
@@ -948,9 +1299,24 @@ impl<'a> Parser<'a> {
         Ok(self.lexer.snap(kind)?)
     }
 
-    /// Check whether the characters associated with two spans match (or not).
-    fn chars_match(&self,lhs: Span<Token>, rhs: Span<Token>) -> bool {
-        self.lexer.get(lhs) == self.lexer.get(rhs)
+
+    /// Determine whether two tokens contain the same set of
+    /// characters.  Observe their spans may not match since we could
+    /// have the same set of characters at different places in the
+    /// input.
+    pub fn matches(&self, lhs: Span<Token>, rhs: Span<Token>) -> bool {
+        let lhs_chars = self.lexer.get(lhs);
+        let rhs_chars = self.lexer.get(rhs);
+        lhs_chars == rhs_chars
+    }
+
+    /// Determine the characters of one token (`lhs`) are a _prefix_
+    /// of another ('rhs').  For example, `ab` is a prefix of `abc`
+    /// but `bc` is _not_ a prefix of `abc`.
+    pub fn prefix_of(&self, lhs: Span<Token>, rhs: Span<Token>) -> bool {
+        let lhs_chars = self.lexer.get(lhs);
+        let rhs_chars = self.lexer.get(rhs);
+        rhs_chars.starts_with(lhs_chars)
     }
 
     /// Construct a `BinOp` from a `Token`.
@@ -974,7 +1340,18 @@ impl<'a> Parser<'a> {
             Token::AmpersandAmpersand => BinOp::LogicalAnd,
             Token::BarBar => BinOp::LogicalOr,
             // No match
-	    _ => { return None; }
+	    _ => { unreachable!(); }
+	};
+        Some(bop)
+    }
+
+    /// Construct an `UnOp` from a `Token`.
+    fn unop_from_token(token: Token) -> Option<UnOp> {
+	let bop = match token {
+            // // Equality
+            Token::Shreak => UnOp::LogicalNot,
+            // No match
+	    _ => { unreachable!(); }
 	};
         Some(bop)
     }

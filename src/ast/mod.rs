@@ -1,6 +1,7 @@
 // Hidden
 pub mod decl;
 pub mod expr;
+pub mod lval;
 pub mod stmt;
 pub mod types;
 pub mod comment;
@@ -11,7 +12,8 @@ use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::{Decl};
-pub use self::expr::{BinOp,Expr};
+pub use self::expr::{BinOp,Expr,QuantOp,UnOp};
+pub use self::lval::{LVal};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
 pub use self::comment::*;
@@ -38,31 +40,42 @@ pub enum Node {
     MethodDecl(decl::Method),
     // Statements
     AssertStmt(stmt::Assert),
+    AssignStmt(stmt::Assignment),
     AssumeStmt(stmt::Assume),
     BlockStmt(stmt::Block),
+    IfElseStmt(stmt::IfElse),
     ReturnStmt(stmt::Return),
     SkipStmt(stmt::Skip),
     VarDeclStmt(stmt::VarDecl),
     // Expressions
     ArrayAccessExpr(expr::ArrayAccess),
+    ArrayGeneratorExpr(expr::ArrayGenerator),
     ArrayInitialiserExpr(expr::ArrayInitialiser),
     ArrayLengthExpr(expr::ArrayLength),
     BinaryExpr(expr::Binary),
+    UnaryExpr(expr::Unary),
     InvokeExpr(expr::Invoke),
+    IsTypeExpr(expr::IsType),
+    RangeExpr(expr::Range),
+    QuantifierExpr(expr::Quantifier),
     VarAccessExpr(expr::VarAccess),
     // Literals
     BoolLiteral(expr::BoolLiteral),
     CharLiteral(expr::CharLiteral),
     IntLiteral(expr::IntLiteral),
+    LambdaLiteral(expr::LambdaLiteral),
+    NullLiteral(expr::NullLiteral),
     StringLiteral(expr::StringLiteral),
     // Types
     ArrayType(types::Array),
     BoolType(types::Bool),
+    FunctionType(types::Function),
     IntType(types::Int),
     NominalType(types::Nominal),
     NullType(types::Null),
     RecordType(types::Record),
     ReferenceType(types::Reference),
+    UnionType(types::Union),
     VoidType(types::Void)
 }
 

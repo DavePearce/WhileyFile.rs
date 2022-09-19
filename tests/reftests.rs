@@ -38,9 +38,15 @@ fn check(test: &str) {
 
 /// Attempt to build a given snapshot, producing zero or more errors.
 fn build(snapshot: &SnapShot) {
-    for (k,v) in snapshot.files.iter() {
+    for (name,srcfile) in snapshot.files.iter() {
         // Attempt to parse source file
-        let wf = WhileyFile::from_str(&v.to_str()).unwrap();
+        match WhileyFile::from_str(&srcfile.to_str()) {
+            Err(e) => {
+                srcfile.print_error(e);
+                panic!("parse error");
+            }
+            Ok(_) => {}
+        }
     }
 }
 
@@ -83,26 +89,64 @@ impl<'a> SnapShot<'a> {
 
 #[derive(Debug)]
 pub struct SourceFile<'a> {
-    contents: Vec<&'a str>
+    lines: Vec<&'a str>
 }
 
 impl<'a> SourceFile<'a> {
-    pub fn new(contents: &[&'a str]) -> Self {
-        SourceFile{contents: contents.to_vec()}
+    pub fn new(lines: &[&'a str]) -> Self {
+        SourceFile{lines: lines.to_vec()}
     }
 
     pub fn replace(&mut self, start: usize, end: usize, lines: &[&'a str]) {
-        self.contents.splice(start..end,lines.iter().cloned());
+        self.lines.splice(start..end,lines.iter().cloned());
     }
 
     pub fn to_str(&self) -> String {
-        self.contents.join("\n")
+        self.lines.join("\n")
+    }
+
+    pub fn print_error(&self, err: whiley_file::Error) {
+        let span = err.span;
+        //
+        println!("error: {:?}",err.code);
+        // Print line itself (if possible)
+        match self.enclosing(span.start()) {
+            Some((l,s,e)) => {
+                println!("{}",&self.lines[l]);
+                // Determine start of highlight
+                let hs = span.start() - s;
+                let he = span.end() - s;
+		let padding = " ".repeat(hs);
+		let highlight = "^".repeat(he-hs);
+		println!("{}{}",padding,highlight);
+            }
+            _ => {}
+        }
+    }
+
+    /// Determine the enclosing line for a given offset in the file
+    /// (or none if there is no match).
+    pub fn enclosing(&self, offset: usize) -> Option<(usize,usize,usize)> {
+        let mut start = 0;
+        //
+        for i in 0..self.lines.len() {
+            // Shift offset
+            let end = start + self.lines[i].len();
+            // check for inclusion
+            if offset <= end {
+                return Some((i,start,end));
+            }
+            //
+            start = end + 1;
+        }
+        //
+        None
     }
 }
 
 impl<'a> fmt::Display for SourceFile<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
-        for line in &self.contents {
+        for line in &self.lines {
             writeln!(f,"{}",line)?;
         }
         Ok(())

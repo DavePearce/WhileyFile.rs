@@ -20,14 +20,16 @@ impl Type {
     /// Determine whether a given term is a type (or not).
     pub fn is(ast: &AbstractSyntaxTree, t: &Node) -> bool {
         match t {
+            Node::ArrayType(_) => true,
             Node::BoolType(_) => true,
+            Node::FunctionType(_) => true,
             Node::IntType(_) => true,
             Node::NominalType(_) => true,
             Node::NullType(_) => true,
-            Node::VoidType(_) => true,
-            Node::ArrayType(_) => true,
             Node::ReferenceType(_) => true,
             Node::RecordType(_) => true,
+            Node::UnionType(_) => true,
+            Node::VoidType(_) => true,
             _ => false
         }
     }
@@ -57,6 +59,17 @@ pub struct Bool();
 
 impl From<Bool> for Node {
     fn from(s: Bool) -> Self { Node::BoolType(s) }
+}
+
+// =============================================================================
+// Function
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Function(pub Vec<Type>, pub Vec<Type>);
+
+impl From<Function> for Node {
+    fn from(s: Function) -> Self { Node::FunctionType(s) }
 }
 
 // =============================================================================
@@ -112,6 +125,17 @@ pub struct Reference(pub Type);
 
 impl From<Reference> for Node {
     fn from(s: Reference) -> Self { Node::ReferenceType(s) }
+}
+
+// =============================================================================
+// Union
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Union(pub Type, pub Type);
+
+impl From<Union> for Node {
+    fn from(s: Union) -> Self { Node::UnionType(s) }
 }
 
 // =============================================================================

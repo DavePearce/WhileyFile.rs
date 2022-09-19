@@ -48,11 +48,11 @@ impl Into<usize> for Decl {
 pub struct Type {
     modifiers: Vec<Modifier>,
     name: Name,
-    pattern: types::Type
+    pattern: decl::Parameter
 }
 
 impl Type {
-    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: types::Type) -> Self {
+    pub fn new(modifiers: Vec<Modifier>, name: Name, pattern: decl::Parameter) -> Self {
         Type{modifiers,name,pattern}
     }
 }
