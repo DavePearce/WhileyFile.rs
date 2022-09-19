@@ -687,6 +687,7 @@ impl<'a> Parser<'a> {
     	let lookahead = self.lexer.peek();
     	// FIXME: managed nested operators
         match lookahead.kind {
+            Token::DotDot => self.parse_expr_range(expr),
             Token::LeftSquare => self.parse_expr_arrayaccess(expr),
             Token::LeftBrace => self.parse_expr_invoke(expr),
             Token::Is => self.parse_expr_istype(expr),
@@ -727,10 +728,18 @@ impl<'a> Parser<'a> {
     /// Parse a _type test expression_ of the form `e is T`, where `T`
     /// is an arbitrary type.
     pub fn parse_expr_istype(&mut self, lhs: Expr) -> Result<Expr> {
-        println!("GOT HERE");
 	self.gap_snap(Token::Is)?;
         let rhs = self.parse_type()?;
     	let expr = Expr::new(self.ast,Node::from(expr::IsType(lhs,rhs)));
+        //
+        Ok(expr)
+    }
+
+    /// Parse _range expression_ of the form `e1 .. e2`.
+    pub fn parse_expr_range(&mut self, lhs: Expr) -> Result<Expr> {
+        self.gap_snap(Token::DotDot);
+        let rhs = self.parse_expr()?;
+        let expr = Expr::new(self.ast,Node::from(expr::Range(lhs,rhs)));
         //
         Ok(expr)
     }
@@ -742,6 +751,7 @@ impl<'a> Parser<'a> {
 	let lookahead = self.lexer.peek();
 	//
         match lookahead.kind {
+            Token::All => self.parse_expr_quantifier(),
     	    Token::Ampersand => self.parse_expr_lambda(),
     	    Token::Bar => self.parse_expr_arraylength(),
     	    Token::Character => self.parse_literal_char(),
@@ -749,7 +759,7 @@ impl<'a> Parser<'a> {
 	    Token::Identifier => self.parse_expr_varaccess(),
     	    Token::Integer => self.parse_literal_int(),
     	    Token::LeftBrace => self.parse_expr_bracketed(),
-            Token::LeftSquare => self.parse_expr_arrayinitialiser(),
+            Token::LeftSquare => self.parse_expr_arraygenerator_or_initialiser(),
     	    Token::Null => self.parse_literal_null(),
     	    Token::True => self.parse_literal_bool(),
             Token::String => self.parse_literal_string(),
@@ -759,14 +769,56 @@ impl<'a> Parser<'a> {
 	}
     }
 
+    pub fn parse_expr_arraygenerator_or_initialiser(&mut self) -> Result<Expr> {
+        // Preserve offset to enable backtracking.
+        let offset = self.lexer.offset();
+        //
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+        self.skip_gap();
+        let mut lookahead = self.lexer.peek();
+        if lookahead.kind == Token::RightSquare {
+            self.lexer.reset(offset);
+            self.parse_expr_arrayinitialiser()
+        } else {
+            let first = self.parse_expr()?;
+            // Check whether its a generator or initialiser
+            self.skip_gap();
+            lookahead = self.lexer.peek();
+            // Backtrack
+            self.lexer.reset(offset);
+            //
+            if lookahead.kind == Token::SemiColon {
+                // Generator
+                self.lexer.reset(offset);
+                self.parse_expr_arraygenerator()
+            } else {
+                // Initialiser
+                self.parse_expr_arrayinitialiser()
+            }
+        }
+    }
+
+    /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
+    /// `[e1,e2]`, etc.
+    pub fn parse_expr_arraygenerator(&mut self) -> Result<Expr> {
+    	let tok = self.lexer.snap(Token::LeftSquare)?;
+        let first = self.parse_expr()?;
+        self.lexer.snap(Token::SemiColon);
+        let second = self.parse_expr()?;
+        self.lexer.snap(Token::RightSquare)?;
+    	let expr = Expr::new(self.ast,Node::from(expr::ArrayGenerator(first,second)));
+        //
+        self.finalise(expr,tok)
+    }
+
     /// Parse an _array initialiser_ expression such as `[]`, `[e1]`,
     /// `[e1,e2]`, etc.
     pub fn parse_expr_arrayinitialiser(&mut self) -> Result<Expr> {
     	let tok = self.lexer.snap(Token::LeftSquare)?;
-    	let exprs = self.parse_terminated_exprs(Token::RightSquare)?;
+    	let mut exprs = self.parse_terminated_exprs(Token::RightSquare)?;
     	self.lexer.snap(Token::RightSquare)?;
     	//
-    	let expr = Expr::new(self.ast,Node::from(expr::ArrayInitialiser(exprs)));
+    	let expr = Expr::new(self.ast, Node::from(expr::ArrayInitialiser(exprs)));
         self.finalise(expr,tok)
     }
 
@@ -802,6 +854,27 @@ impl<'a> Parser<'a> {
 
     pub fn parse_expr_lambda_initialiser(&mut self) -> Result<Expr> {
         todo!("Parse lambda initialiser");
+    }
+
+    pub fn parse_expr_quantifier(&mut self) -> Result<Expr> {
+        self.lexer.snap(Token::All)?;
+        self.gap_snap(Token::LeftCurly)?;
+        // Parse parameters
+        let mut vars = Vec::new();
+        loop {
+            let name = self.parse_identifier()?;
+            self.gap_snap(Token::In)?;
+            let range = self.parse_expr()?;
+            vars.push((name,range));
+            if self.gap_snap(Token::Comma).is_err() { break; }
+        }
+        //
+        self.gap_snap(Token::Bar)?;
+        let expr = self.parse_expr()?;
+        self.gap_snap(Token::RightCurly)?;
+        // Done.
+        let expr = Expr::new(self.ast,Node::from(expr::Quantifier(QuantOp::All,vars,expr)));
+        Ok(expr)
     }
 
     /// Parse a variable access expression.

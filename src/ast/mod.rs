@@ -12,7 +12,7 @@ use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 // Reexport everything
 pub use self::decl::{Decl};
-pub use self::expr::{BinOp,Expr,UnOp};
+pub use self::expr::{BinOp,Expr,QuantOp,UnOp};
 pub use self::lval::{LVal};
 pub use self::stmt::{Stmt};
 pub use self::types::{Type};
@@ -49,12 +49,15 @@ pub enum Node {
     VarDeclStmt(stmt::VarDecl),
     // Expressions
     ArrayAccessExpr(expr::ArrayAccess),
+    ArrayGeneratorExpr(expr::ArrayGenerator),
     ArrayInitialiserExpr(expr::ArrayInitialiser),
     ArrayLengthExpr(expr::ArrayLength),
     BinaryExpr(expr::Binary),
     UnaryExpr(expr::Unary),
     InvokeExpr(expr::Invoke),
     IsTypeExpr(expr::IsType),
+    RangeExpr(expr::Range),
+    QuantifierExpr(expr::Quantifier),
     VarAccessExpr(expr::VarAccess),
     // Literals
     BoolLiteral(expr::BoolLiteral),

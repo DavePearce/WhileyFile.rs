@@ -22,6 +22,7 @@ impl Expr {
         match t {
 	    Node::ArrayAccessExpr(_) => true,
 	    Node::ArrayInitialiserExpr(_) => true,
+            Node::ArrayGeneratorExpr(_) => true,
 	    Node::ArrayLengthExpr(_) => true,
 	    Node::BoolLiteral(_) => true,
 	    Node::CharLiteral(_) => true,
@@ -32,6 +33,8 @@ impl Expr {
 	    Node::NullLiteral(_) => true,
 	    Node::InvokeExpr(_) => true,
 	    Node::IsTypeExpr(_) => true,
+	    Node::RangeExpr(_) => true,
+	    Node::QuantifierExpr(_) => true,
 	    Node::VarAccessExpr(_) => true,
 	    Node::StringLiteral(_) => true,
             _ => false
@@ -179,6 +182,13 @@ impl From<ArrayAccess> for Node {
 }
 
 #[derive(Clone,Debug,PartialEq)]
+pub struct ArrayGenerator(pub Expr, pub Expr);
+
+impl From<ArrayGenerator> for Node {
+    fn from(s: ArrayGenerator) -> Self { Node::ArrayGeneratorExpr(s) }
+}
+
+#[derive(Clone,Debug,PartialEq)]
 pub struct ArrayInitialiser(pub Vec<Expr>);
 
 impl From<ArrayInitialiser> for Node {
@@ -193,7 +203,7 @@ impl From<ArrayLength> for Node {
 }
 
 // =============================================================================
-// Misc
+// IsType
 // =============================================================================
 
 #[derive(Clone,Debug,PartialEq)]
@@ -201,4 +211,34 @@ pub struct IsType(pub Expr, pub Type);
 
 impl From<IsType> for Node {
     fn from(s: IsType) -> Self { Node::IsTypeExpr(s) }
+}
+
+// =============================================================================
+// Range
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Range(pub Expr, pub Expr);
+
+impl From<Range> for Node {
+    fn from(s: Range) -> Self { Node::RangeExpr(s) }
+}
+
+// =============================================================================
+// Quantifier
+// =============================================================================
+
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum QuantOp {
+    // Universal quantifier
+    All,
+    // Existential quantifier
+    Exists
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Quantifier(pub QuantOp, pub Vec<(Name,Expr)>, pub Expr);
+
+impl From<Quantifier> for Node {
+    fn from(s: Quantifier) -> Self { Node::QuantifierExpr(s) }
 }
