@@ -54,6 +54,7 @@ pub enum Node {
     BinaryExpr(expr::Binary),
     UnaryExpr(expr::Unary),
     InvokeExpr(expr::Invoke),
+    IsTypeExpr(expr::IsType),
     VarAccessExpr(expr::VarAccess),
     // Literals
     BoolLiteral(expr::BoolLiteral),

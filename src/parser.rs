@@ -357,7 +357,7 @@ impl<'a> Parser<'a> {
         // Determine indentation level for this block
     	let nindent = self.determine_block_indent(indent)?;
     	// Parse remaining statements at same indent
-        while self.chars_match(self.lexer.peek(),nindent) {
+        while self.matches(self.lexer.peek(),nindent) {
             // Attempt to parse statement
             match self.parse_stmt(nindent)? {
                 Some(stmt) => stmts.push(stmt),
@@ -381,10 +381,8 @@ impl<'a> Parser<'a> {
                 self.determine_block_indent(indent)
             }
             Token::Gap => {
-                let indent_chars = self.lexer.get(indent);
-                let nindent = self.lexer.get(lookahead);
                 // Sanity check indentation
-                if !nindent.starts_with(indent_chars) || indent_chars.len() == nindent.len() {
+                if !self.prefix_of(indent,lookahead) || self.matches(indent,lookahead) {
     	            // Parent indent not a strict prefix of current indent.
                     return Err(Error::new(lookahead,ErrorCode::InvalidBlockIndent));
                 }
@@ -405,7 +403,7 @@ impl<'a> Parser<'a> {
         // Parse indentation
         let nindent = self.lexer.snap(Token::Gap)?;
         // Sanity check indentation
-        if !self.chars_match(nindent,indent) {
+        if !self.matches(nindent,indent) {
     	    // Parent indent not a strict prefix of current indent.
             return Err(Error::new(nindent,ErrorCode::InvalidBlockIndent));
         }
@@ -488,12 +486,43 @@ impl<'a> Parser<'a> {
 	let tok = self.lexer.snap(Token::If)?;
 	let expr = self.parse_expr()?;
         self.gap_snap(Token::Colon)?;
+        self.lexer.snap(Token::NewLine)?;
         // Parse true block
         let tt_block = self.parse_stmt_block(indent)?;
-        // FIXME: check for false block!
-        let stmt = Stmt::new(self.ast,Node::from(stmt::IfElse(expr,tt_block,None)));
+        // Parse false block (if applicable)
+        let lookehead = self.lexer.peek();
+        let mut ff_block = None;
+        // Attempt to parse else block or if-else chain.
+        if self.snap_optional_else(indent) {
+            // Check if-else or just else
+            if self.lexer.snap(Token::Colon).is_ok() {
+                // just else
+                self.match_line_end()?;
+                ff_block = Some(self.parse_stmt_block(indent)?);
+            } else {
+                // must be else-if
+                self.skip_gap();
+                ff_block = Some(self.parse_stmt_ifelse(indent)?);
+            }
+        }
+        let stmt = Stmt::new(self.ast,Node::from(stmt::IfElse(expr,tt_block,ff_block)));
         // Done
         self.finalise(stmt,tok)
+    }
+
+    /// Snap an (optional) `else` keword.
+    pub fn snap_optional_else(&mut self, indent : Span<Token>) -> bool {
+        // Preserve position to enable back track.
+        let offset = self.lexer.offset();
+        let l = self.lexer.peek();
+        //
+        if l.kind == Token::Gap && self.matches(l,indent) && self.gap_snap(Token::Else).is_ok() {
+            true
+        } else {
+            // Backtrack
+            self.lexer.reset(offset);
+            false
+        }
     }
 
     pub fn parse_stmt_return(&mut self) -> Result<Stmt> {
@@ -660,7 +689,19 @@ impl<'a> Parser<'a> {
         match lookahead.kind {
             Token::LeftSquare => self.parse_expr_arrayaccess(expr),
             Token::LeftBrace => self.parse_expr_invoke(expr),
-            _ => Ok(expr)
+            Token::Is => self.parse_expr_istype(expr),
+            Token::Gap => {
+                self.skip_gap();
+                // Check for type test.
+                if self.lexer.peek().kind == Token::Is {
+                    self.parse_expr_istype(expr)
+                } else {
+                    Ok(expr)
+                }
+            }
+            _ => {
+                Ok(expr)
+            }
         }
     }
 
@@ -681,6 +722,17 @@ impl<'a> Parser<'a> {
 	let expr = Expr::new(self.ast,Node::from(expr::Invoke(src,exprs)));
         // FIXME: wrong because tok is not first.
         self.finalise(expr,tok)
+    }
+
+    /// Parse a _type test expression_ of the form `e is T`, where `T`
+    /// is an arbitrary type.
+    pub fn parse_expr_istype(&mut self, lhs: Expr) -> Result<Expr> {
+        println!("GOT HERE");
+	self.gap_snap(Token::Is)?;
+        let rhs = self.parse_type()?;
+    	let expr = Expr::new(self.ast,Node::from(expr::IsType(lhs,rhs)));
+        //
+        Ok(expr)
     }
 
     pub fn parse_expr_term(&mut self) -> Result<Expr> {
@@ -1174,9 +1226,24 @@ impl<'a> Parser<'a> {
         Ok(self.lexer.snap(kind)?)
     }
 
-    /// Check whether the characters associated with two spans match (or not).
-    fn chars_match(&self,lhs: Span<Token>, rhs: Span<Token>) -> bool {
-        self.lexer.get(lhs) == self.lexer.get(rhs)
+
+    /// Determine whether two tokens contain the same set of
+    /// characters.  Observe their spans may not match since we could
+    /// have the same set of characters at different places in the
+    /// input.
+    pub fn matches(&self, lhs: Span<Token>, rhs: Span<Token>) -> bool {
+        let lhs_chars = self.lexer.get(lhs);
+        let rhs_chars = self.lexer.get(rhs);
+        lhs_chars == rhs_chars
+    }
+
+    /// Determine the characters of one token (`lhs`) are a _prefix_
+    /// of another ('rhs').  For example, `ab` is a prefix of `abc`
+    /// but `bc` is _not_ a prefix of `abc`.
+    pub fn prefix_of(&self, lhs: Span<Token>, rhs: Span<Token>) -> bool {
+        let lhs_chars = self.lexer.get(lhs);
+        let rhs_chars = self.lexer.get(rhs);
+        rhs_chars.starts_with(lhs_chars)
     }
 
     /// Construct a `BinOp` from a `Token`.

@@ -31,6 +31,7 @@ impl Expr {
 	    Node::LambdaLiteral(_) => true,
 	    Node::NullLiteral(_) => true,
 	    Node::InvokeExpr(_) => true,
+	    Node::IsTypeExpr(_) => true,
 	    Node::VarAccessExpr(_) => true,
 	    Node::StringLiteral(_) => true,
             _ => false
@@ -189,4 +190,15 @@ pub struct ArrayLength(pub Expr);
 
 impl From<ArrayLength> for Node {
     fn from(s: ArrayLength) -> Self { Node::ArrayLengthExpr(s) }
+}
+
+// =============================================================================
+// Misc
+// =============================================================================
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct IsType(pub Expr, pub Type);
+
+impl From<IsType> for Node {
+    fn from(s: IsType) -> Self { Node::IsTypeExpr(s) }
 }
