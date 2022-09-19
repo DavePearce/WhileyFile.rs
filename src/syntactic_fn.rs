@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 
@@ -32,6 +33,40 @@ pub trait SyntacticFn<V> {
     fn call_stmt_return(&self, d: &stmt::Return) -> V;
     fn call_stmt_skip(&self, d: &stmt::Skip) -> V;
     fn call_stmt_vardecl(&self, d: &stmt::VarDecl) -> V;
+}
+
+// ===========================================================================
+// Syntactic Function
+// ===========================================================================
+
+pub struct CacheFn<F,S,T>
+where F : Fn(S)->T, S : Hash+Eq+Copy {
+    /// Dispatch function.
+    func: F,
+    /// Cache of intermediate values.
+    cache: HashMap<S, T>
+}
+
+impl<F,S,T> CacheFn<F,S,T>
+where F : Fn(S)->T, S : Hash+Eq+Copy, T:Copy {
+    pub fn new(func: F) -> Self {
+        let cache = HashMap::new();
+	CacheFn{func,cache}
+    }
+    pub fn call(&mut self, arg: S) -> T {
+        // Check cache
+        match self.cache.get(&arg) {
+            Some(v) => *v,
+            None => {
+                // Dispatch
+                let v = (self.func)(arg);
+                // Cache result
+                self.cache.insert(arg,v);
+                // Done
+                v
+            }
+        }
+    }
 }
 
 // ===========================================================================
