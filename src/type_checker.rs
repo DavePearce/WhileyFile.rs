@@ -40,7 +40,7 @@ impl<'a> TypeChecker<'a> {
         self.check(self.ast.len()-1);
     }
 
-    pub fn check<T:Into<usize>>(&mut self, term: T) {
+    pub fn check<T:Into<usize>>(&mut self, term: T) -> Result<Type> {
         // Extract node corresponding to term
         let n = self.ast.get(term.into());
         // Dispatch
@@ -71,7 +71,7 @@ impl<'a> TypeChecker<'a> {
             // QuantifierExpr(expr::Quantifier),
             // VarAccessExpr(expr::VarAccess),
             // // Literals
-            // BoolLiteral(expr::BoolLiteral),
+            Node::BoolLiteral(e) => self.check_expr_bool(&e),
             // CharLiteral(expr::CharLiteral),
             Node::IntLiteral(e) => {
                 todo!("integer literal");
@@ -100,11 +100,11 @@ impl<'a> TypeChecker<'a> {
     // Declarations
     // =============================================================================
 
-    pub fn check_decl_type(&mut self, d: &decl::Type) {
+    pub fn check_decl_type(&mut self, d: &decl::Type) -> Result<Type> {
         todo!("check_decl_type");
     }
 
-    pub fn check_decl_function(&mut self, d: &decl::Function) {
+    pub fn check_decl_function(&mut self, d: &decl::Function) -> Result<Type> {
         for p in &d.parameters {
             self.check(p.declared);
         }
@@ -115,9 +115,11 @@ impl<'a> TypeChecker<'a> {
             self.check_clause(c);
         }
         self.check(d.body);
+	//
+	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_decl_method(&mut self, d: &decl::Method) {
+    pub fn check_decl_method(&mut self, d: &decl::Method) -> Result<Type> {
         todo!("check_decl_method");
     }
 
@@ -125,7 +127,7 @@ impl<'a> TypeChecker<'a> {
     // Specification
     // =============================================================================
 
-    pub fn check_clause(&mut self, d: &decl::Clause) {
+    pub fn check_clause(&mut self, d: &decl::Clause) -> Result<Type> {
         todo!("check_clause");
     }
 
@@ -133,38 +135,65 @@ impl<'a> TypeChecker<'a> {
     // Statements
     // =============================================================================
 
-    pub fn check_stmt_assert(&mut self, d: &stmt::Assert) {
-        todo!("check_stmt_assert");
+    pub fn check_stmt_assert(&mut self, d: &stmt::Assert) -> Result<Type> {
+	// Determine type for asserted expression
+	self.check(d.0);
+	// TODO: sort this out!
+	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_assignment(&mut self, d: &stmt::Assignment) {
+    pub fn check_stmt_assignment(&mut self, d: &stmt::Assignment) -> Result<Type> {
         todo!("check_stmt_assign");
     }
 
-    pub fn check_stmt_assume(&mut self, d: &stmt::Assume) {
+    pub fn check_stmt_assume(&mut self, d: &stmt::Assume) -> Result<Type> {
         todo!("check_stmt_assume");
     }
 
-    pub fn check_stmt_block(&mut self, d: &stmt::Block) {
+    pub fn check_stmt_block(&mut self, d: &stmt::Block) -> Result<Type> {
 	// Check each statement in a row
 	for s in &d.0 {
-	    self.check(*s);
+	    self.check(*s)?;
 	}
+	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_ifelse(&mut self, d: &stmt::IfElse) {
+    pub fn check_stmt_ifelse(&mut self, d: &stmt::IfElse) -> Result<Type> {
         todo!("check_stmt_ifelse");
     }
 
-    pub fn check_stmt_return(&mut self, d: &stmt::Return) {
+    pub fn check_stmt_return(&mut self, d: &stmt::Return) -> Result<Type> {
         todo!("check_stmt_return");
     }
 
-    pub fn check_stmt_skip(&mut self, d: &stmt::Skip) {
+    pub fn check_stmt_skip(&mut self, d: &stmt::Skip) -> Result<Type> {
 	// Do nothing!
+	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_vardecl(&mut self, d: &stmt::VarDecl) {
+    pub fn check_stmt_vardecl(&mut self, d: &stmt::VarDecl) -> Result<Type> {
         todo!("check_stmt_vardecl");
     }
+
+    // =============================================================================
+    // Literals
+    // =============================================================================
+
+    pub fn check_expr_bool(&mut self, d: &expr::BoolLiteral) -> Result<Type> {
+	// Construct boolean type.
+	Ok(self.type_of(types::Bool()))
+    }
+
+    fn type_of<T:Into<Types>>(&mut self, t: T) -> Type {
+	// FIXME: this is where we want to manage the creation of
+	// types carefully, such that we don't create any duplicate
+	// types.  In particular, ideally, physical equality implies
+	// semantics equality.
+	//
+        // Create new node
+        let index = self.typing.push(t.into()).raw_index();
+        // Done
+        Type(index)
+    }
+
 }

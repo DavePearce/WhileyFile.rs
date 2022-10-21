@@ -50,6 +50,10 @@ impl From<Array> for Node {
     fn from(s: Array) -> Self { Node::ArrayType(s) }
 }
 
+impl Into<Types> for Array {
+    fn into(self) -> Types { Types::ArrayType(self) }
+}
+
 // =============================================================================
 // Bool
 // =============================================================================
@@ -59,6 +63,10 @@ pub struct Bool();
 
 impl From<Bool> for Node {
     fn from(s: Bool) -> Self { Node::BoolType(s) }
+}
+
+impl Into<Types> for Bool {
+    fn into(self) -> Types { Types::BoolType(self) }
 }
 
 // =============================================================================
@@ -72,6 +80,10 @@ impl From<Function> for Node {
     fn from(s: Function) -> Self { Node::FunctionType(s) }
 }
 
+impl Into<Types> for Function {
+    fn into(self) -> Types { Types::FunctionType(self) }
+}
+
 // =============================================================================
 // Int
 // =============================================================================
@@ -81,6 +93,10 @@ pub struct Int(pub bool, pub u8);
 
 impl From<Int> for Node {
     fn from(s: Int) -> Self { Node::IntType(s) }
+}
+
+impl Into<Types> for Int {
+    fn into(self) -> Types { Types::IntType(self) }
 }
 
 // =============================================================================
@@ -94,6 +110,10 @@ impl From<Nominal> for Node {
     fn from(s: Nominal) -> Self { Node::NominalType(s) }
 }
 
+impl Into<Types> for Nominal {
+    fn into(self) -> Types { Types::NominalType(self) }
+}
+
 // =============================================================================
 // Null
 // =============================================================================
@@ -103,6 +123,10 @@ pub struct Null();
 
 impl From<Null> for Node {
     fn from(s: Null) -> Self { Node::NullType(s) }
+}
+
+impl Into<Types> for Null {
+    fn into(self) -> Types { Types::NullType(self) }
 }
 
 // =============================================================================
@@ -116,6 +140,10 @@ impl From<Record> for Node {
     fn from(s: Record) -> Self { Node::RecordType(s) }
 }
 
+impl Into<Types> for Record {
+    fn into(self) -> Types { Types::RecordType(self) }
+}
+
 // =============================================================================
 // Reference
 // =============================================================================
@@ -125,6 +153,10 @@ pub struct Reference(pub Type);
 
 impl From<Reference> for Node {
     fn from(s: Reference) -> Self { Node::ReferenceType(s) }
+}
+
+impl Into<Types> for Reference {
+    fn into(self) -> Types { Types::ReferenceType(self) }
 }
 
 // =============================================================================
@@ -138,6 +170,10 @@ impl From<Union> for Node {
     fn from(s: Union) -> Self { Node::UnionType(s) }
 }
 
+impl Into<Types> for Union {
+    fn into(self) -> Types { Types::UnionType(self) }
+}
+
 // =============================================================================
 // Void
 // =============================================================================
@@ -147,4 +183,8 @@ pub struct Void();
 
 impl From<Void> for Node {
     fn from(s: Void) -> Self { Node::VoidType(s) }
+}
+
+impl Into<Types> for Void {
+    fn into(self) -> Types { Types::VoidType(self) }
 }
