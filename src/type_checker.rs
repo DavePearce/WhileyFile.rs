@@ -146,7 +146,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_stmt_block(&mut self, d: &stmt::Block) {
-        todo!("check_stmt_block");
+	// Check each statement in a row
+	for s in &d.0 {
+	    self.check(*s);
+	}
     }
 
     pub fn check_stmt_ifelse(&mut self, d: &stmt::IfElse) {
@@ -158,7 +161,7 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_stmt_skip(&mut self, d: &stmt::Skip) {
-        todo!("check_stmt_skip");
+	// Do nothing!
     }
 
     pub fn check_stmt_vardecl(&mut self, d: &stmt::VarDecl) {
