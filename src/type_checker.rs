@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use syntactic_heap::SyntacticHeap;
-use syntactic_heap::Ref;
 
 use crate::{Error,ErrorCode};
 use crate::ast::*;
@@ -25,16 +24,16 @@ pub type Typing = SyntacticHeap<Types>;
 pub type Env = HashMap<String, Type>;
 
 pub struct TypeChecker<'a> {
-    globals: Env,
+    // globals: Env,
     typing: Typing,
     ast: &'a AbstractSyntaxTree
 }
 
 impl<'a> TypeChecker<'a> {
     pub fn new(ast: &'a AbstractSyntaxTree) -> Self {
-        let globals : Env = HashMap::new();
+        //let globals : Env = HashMap::new();
         let typing = Typing::new();
-	TypeChecker{globals,typing,ast}
+	TypeChecker{typing,ast}
     }
 
     pub fn check_all(&mut self) -> Result<Type> {
@@ -74,7 +73,7 @@ impl<'a> TypeChecker<'a> {
             // // Literals
             Node::BoolLiteral(e) => self.check_expr_bool(&e),
             // CharLiteral(expr::CharLiteral),
-            Node::IntLiteral(e) => {
+            Node::IntLiteral(_) => {
                 todo!("integer literal");
             }
             // LambdaLiteral(expr::LambdaLiteral),
@@ -101,7 +100,7 @@ impl<'a> TypeChecker<'a> {
     // Declarations
     // =============================================================================
 
-    pub fn check_decl_type(&mut self, d: &decl::Type) -> Result<Type> {
+    pub fn check_decl_type(&mut self, _d: &decl::Type) -> Result<Type> {
         todo!("check_decl_type");
     }
 
@@ -120,7 +119,7 @@ impl<'a> TypeChecker<'a> {
 	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_decl_method(&mut self, d: &decl::Method) -> Result<Type> {
+    pub fn check_decl_method(&mut self, _d: &decl::Method) -> Result<Type> {
         todo!("check_decl_method");
     }
 
@@ -128,7 +127,7 @@ impl<'a> TypeChecker<'a> {
     // Specification
     // =============================================================================
 
-    pub fn check_clause(&mut self, d: &decl::Clause) -> Result<Type> {
+    pub fn check_clause(&mut self, _d: &decl::Clause) -> Result<Type> {
         todo!("check_clause");
     }
 
@@ -145,11 +144,11 @@ impl<'a> TypeChecker<'a> {
 	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_assignment(&mut self, d: &stmt::Assignment) -> Result<Type> {
+    pub fn check_stmt_assignment(&mut self, _d: &stmt::Assignment) -> Result<Type> {
         todo!("check_stmt_assign");
     }
 
-    pub fn check_stmt_assume(&mut self, d: &stmt::Assume) -> Result<Type> {
+    pub fn check_stmt_assume(&mut self, _d: &stmt::Assume) -> Result<Type> {
         todo!("check_stmt_assume");
     }
 
@@ -162,20 +161,20 @@ impl<'a> TypeChecker<'a> {
 	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_ifelse(&mut self, d: &stmt::IfElse) -> Result<Type> {
+    pub fn check_stmt_ifelse(&mut self, _d: &stmt::IfElse) -> Result<Type> {
         todo!("check_stmt_ifelse");
     }
 
-    pub fn check_stmt_return(&mut self, d: &stmt::Return) -> Result<Type> {
+    pub fn check_stmt_return(&mut self, _d: &stmt::Return) -> Result<Type> {
         todo!("check_stmt_return");
     }
 
-    pub fn check_stmt_skip(&mut self, d: &stmt::Skip) -> Result<Type> {
+    pub fn check_stmt_skip(&mut self, _d: &stmt::Skip) -> Result<Type> {
 	// Do nothing!
 	Ok(self.type_of(types::Void()))
     }
 
-    pub fn check_stmt_vardecl(&mut self, d: &stmt::VarDecl) -> Result<Type> {
+    pub fn check_stmt_vardecl(&mut self, _d: &stmt::VarDecl) -> Result<Type> {
         todo!("check_stmt_vardecl");
     }
 
@@ -183,7 +182,7 @@ impl<'a> TypeChecker<'a> {
     // Literals
     // =============================================================================
 
-    pub fn check_expr_bool(&mut self, d: &expr::BoolLiteral) -> Result<Type> {
+    pub fn check_expr_bool(&mut self, _e: &expr::BoolLiteral) -> Result<Type> {
 	// Construct boolean type.
 	Ok(self.type_of(types::Bool()))
     }

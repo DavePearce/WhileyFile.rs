@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
     /// Properties are permitted to have `requires` clauses, but not
     /// `ensures` clauses.  Their body is also constrained to admin
     /// only non-looping statements.
-    pub fn parse_decl_property(&mut self, modifiers: Vec<decl::Modifier>) -> Result<Decl> {
+    pub fn parse_decl_property(&mut self, _modifiers: Vec<decl::Modifier>) -> Result<Decl> {
         todo![];
     }
 
@@ -186,7 +186,7 @@ impl<'a> Parser<'a> {
     /// `public` and `private`.
     pub fn parse_decl_type(&mut self,  modifiers: Vec<decl::Modifier>) -> Result<Decl> {
         // "type"
-        let start = self.lexer.snap(Token::Type)?;
+        self.lexer.snap(Token::Type)?;
         let name = self.parse_identifier()?;
         // "is"
         self.gap_snap(Token::Is)?;
@@ -205,7 +205,7 @@ impl<'a> Parser<'a> {
         let (t,n) = if self.lexer.snap(Token::LeftBrace).is_ok() {
 	    let typ = self.parse_type()?;
 	    let name = self.parse_identifier()?;
-            self.gap_snap(Token::RightBrace);
+            self.gap_snap(Token::RightBrace)?;
             (typ,name)
         } else {
             let typ = self.parse_type()?;
@@ -377,7 +377,7 @@ impl<'a> Parser<'a> {
         match lookahead.kind {
             Token::BlockComment|Token::LineComment => {
                 // Ignore comments!
-                self.match_line_end();
+                self.match_line_end()?;
                 self.determine_block_indent(indent)
             }
             Token::Gap => {
@@ -413,7 +413,7 @@ impl<'a> Parser<'a> {
     	match lookahead.kind {
             // Match whitespace
             Token::LineComment | Token::BlockComment | Token::NewLine => {
-                self.match_line_end();
+                self.match_line_end()?;
                 Ok(None)
             }
             // Match everything else!
@@ -467,7 +467,7 @@ impl<'a> Parser<'a> {
     pub fn parse_stmt_assignment(&mut self) -> Result<Stmt> {
         // FIXME: process multi-assignment
         let lhs = self.parse_lval()?;
-        self.gap_snap(Token::Equals);
+        self.gap_snap(Token::Equals)?;
         let rhs = self.parse_expr()?;
         // Allocate statement
         let stmt = Stmt::new(self.ast, Node::from(stmt::Assignment(lhs,rhs)));
@@ -490,7 +490,6 @@ impl<'a> Parser<'a> {
         // Parse true block
         let tt_block = self.parse_stmt_block(indent)?;
         // Parse false block (if applicable)
-        let lookehead = self.lexer.peek();
         let mut ff_block = None;
         // Attempt to parse else block or if-else chain.
         if self.snap_optional_else(indent) {
@@ -529,7 +528,7 @@ impl<'a> Parser<'a> {
     	// "return"
     	let tok = self.lexer.snap(Token::Return)?;
     	//
-        self.skip_linespace();
+        self.skip_linespace()?;
         // See whether an expression follows
         let stmt = match self.lexer.snap(Token::NewLine) {
             Ok(_) => Node::from(stmt::Return(Option::None)),
@@ -557,7 +556,7 @@ impl<'a> Parser<'a> {
         // name
         let name = self.parse_identifier()?;
         // Skip over any linespace
-        self.skip_linespace();
+        self.skip_linespace()?;
     	// Initialiser (Optional)
     	let expr = match self.lexer.snap(Token::Equals) {
             Ok(_) => {
@@ -639,7 +638,7 @@ impl<'a> Parser<'a> {
             // Parse level below
     	    let lhs = self.parse_expr_binary(level-1)?;
             // Skip remaining whitespace (on this line)
-            self.skip_linespace();
+            self.skip_linespace()?;
 	    // Check whether logical connective follows
     	    let lookahead = self.lexer.snap_any(tokens);
             //
@@ -682,7 +681,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expr_postfix(&mut self) -> Result<Expr> {
-        let mut expr = self.parse_expr_term()?;
+        let expr = self.parse_expr_term()?;
         // Check for postfix unary operator.
     	let lookahead = self.lexer.peek();
     	// FIXME: managed nested operators
@@ -737,7 +736,7 @@ impl<'a> Parser<'a> {
 
     /// Parse _range expression_ of the form `e1 .. e2`.
     pub fn parse_expr_range(&mut self, lhs: Expr) -> Result<Expr> {
-        self.gap_snap(Token::DotDot);
+        self.gap_snap(Token::DotDot)?;
         let rhs = self.parse_expr()?;
         let expr = Expr::new(self.ast,Node::from(expr::Range(lhs,rhs)));
         //
@@ -773,14 +772,14 @@ impl<'a> Parser<'a> {
         // Preserve offset to enable backtracking.
         let offset = self.lexer.offset();
         //
-    	let tok = self.lexer.snap(Token::LeftSquare)?;
+    	self.lexer.snap(Token::LeftSquare)?;
         self.skip_gap();
         let mut lookahead = self.lexer.peek();
         if lookahead.kind == Token::RightSquare {
             self.lexer.reset(offset);
             self.parse_expr_arrayinitialiser()
         } else {
-            let first = self.parse_expr()?;
+            self.parse_expr()?;
             // Check whether its a generator or initialiser
             self.skip_gap();
             lookahead = self.lexer.peek();
@@ -803,7 +802,7 @@ impl<'a> Parser<'a> {
     pub fn parse_expr_arraygenerator(&mut self) -> Result<Expr> {
     	let tok = self.lexer.snap(Token::LeftSquare)?;
         let first = self.parse_expr()?;
-        self.lexer.snap(Token::SemiColon);
+        self.lexer.snap(Token::SemiColon)?;
         let second = self.parse_expr()?;
         self.lexer.snap(Token::RightSquare)?;
     	let expr = Expr::new(self.ast,Node::from(expr::ArrayGenerator(first,second)));
@@ -815,7 +814,7 @@ impl<'a> Parser<'a> {
     /// `[e1,e2]`, etc.
     pub fn parse_expr_arrayinitialiser(&mut self) -> Result<Expr> {
     	let tok = self.lexer.snap(Token::LeftSquare)?;
-    	let mut exprs = self.parse_terminated_exprs(Token::RightSquare)?;
+    	let exprs = self.parse_terminated_exprs(Token::RightSquare)?;
     	self.lexer.snap(Token::RightSquare)?;
     	//
     	let expr = Expr::new(self.ast, Node::from(expr::ArrayInitialiser(exprs)));
@@ -1003,12 +1002,12 @@ impl<'a> Parser<'a> {
     pub fn parse_type_union(&mut self) -> Result<Type> {
         let mut lhs = self.parse_type_compound()?;
         // Skip remaining whitespace (on this line)
-        self.skip_linespace();
+        self.skip_linespace()?;
 	// Check whether union connective follows
     	let lookahead = self.lexer.peek();
         //
         if lookahead.kind == Token::Bar {
-            self.lexer.snap(Token::Bar);
+            self.lexer.snap(Token::Bar)?;
             // FIXME: turn this into a loop!
 	    let rhs = self.parse_type_union()?;
 	    let node = Node::from(types::Union(lhs,rhs));
@@ -1164,7 +1163,7 @@ impl<'a> Parser<'a> {
     /// Finalise a given node after its creation.  Amongst other
     /// things, this registers its source mappiung (i.e. all
     /// characters from a given token upto the current position).
-    fn finalise<T:Copy+Into<usize>>(&mut self, node:T, span: Span<Token>) -> Result<T> {
+    fn finalise<T:Copy+Into<usize>>(&mut self, node:T, _span: Span<Token>) -> Result<T> {
         // end = self.lexer.offset();
         // Extract slice
         // let slice = &self.lexer.input[token.start .. end];

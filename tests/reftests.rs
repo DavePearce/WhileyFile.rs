@@ -38,7 +38,7 @@ fn check(test: &str) {
 
 /// Attempt to build a given snapshot, producing zero or more errors.
 fn build(snapshot: &SnapShot) {
-    for (name,srcfile) in snapshot.files.iter() {
+    for (_,srcfile) in snapshot.files.iter() {
         // Attempt to parse source file
         match WhileyFile::from_str(&srcfile.to_str()) {
             Err(e) => {
@@ -111,7 +111,7 @@ impl<'a> SourceFile<'a> {
         println!("error: {:?}",err.code);
         // Print line itself (if possible)
         match self.enclosing(span.start()) {
-            Some((l,s,e)) => {
+            Some((l,s,_)) => {
                 println!("{}",&self.lines[l]);
                 // Determine start of highlight
                 let hs = span.start() - s;

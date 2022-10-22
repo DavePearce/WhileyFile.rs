@@ -1,7 +1,6 @@
 use whiley_file::WhileyFile;
 use whiley_file::ast::*;
 use whiley_file::ast::decl::{Clause,Parameter};
-use whiley_file::parser::Parser;
 use whiley_file::type_checker::TypeChecker;
 
 // ======================================================
@@ -235,32 +234,32 @@ fn test_function_08() {
 
 #[test]
 fn test_function_09() {
-    let ast = check_parse("function f()->() :\n skip");
+    check_parse("function f()->() :\n skip");
 }
 
 #[test]
 fn test_function_0a() {
-    let ast = check_parse("public function f()->() :\n skip");
+    check_parse("public function f()->() :\n skip");
 }
 
 #[test]
 fn test_function_0b() {
-    let ast = check_parse("private function f()->() :\n skip");
+    check_parse("private function f()->() :\n skip");
 }
 
 #[test]
 fn test_function_0c() {
-    let ast = check_parse("export function f()->() :\n skip");
+    check_parse("export function f()->() :\n skip");
 }
 
 #[test]
 fn test_function_0d() {
-    let ast = check_parse("export function f()->(int x):\n skip");
+    check_parse("export function f()->(int x):\n skip");
 }
 
 #[test]
 fn test_function_0e() {
-    let ast = check_parse("export function f()->int:\n skip");
+    check_parse("export function f()->int:\n skip");
 }
 
 #[test]
@@ -615,7 +614,7 @@ fn test_assert_08e() {
 
 #[test]
 fn test_assert_10() {
-    let ast = check_type_error("function f() -> ():\n assert b");
+    check_type_error("function f() -> ():\n assert b");
 }
 
 #[test]
@@ -665,7 +664,7 @@ fn test_assert_12c() {
 
 #[test]
 fn test_assert_12d() {
-    let ast = check_parse_error("function f(i32 i) -> ():\n assert i // nout\n    < 0");
+    check_parse_error("function f(i32 i) -> ():\n assert i // nout\n    < 0");
 }
 
 #[test]
@@ -682,15 +681,9 @@ fn test_assert_12e() {
 // Helpers
 // ======================================================
 
-/// A dummy source mapper which does nothing.
-fn source_mapper<'a>(_: usize, _: &'a str) { }
-
-/// A dummy type mapper which does nothing.
-fn type_mapper<'a>(_: usize, _: Type) { }
-
 #[cfg(test)]
 fn check_parse(input: &str) -> Box<AbstractSyntaxTree> {
-    let mut wf = WhileyFile::from_str(input);
+    let wf = WhileyFile::from_str(input);
     assert!(!wf.is_err());
     // Type input
     let mut ast = wf.unwrap().ast;
@@ -703,13 +696,13 @@ fn check_parse(input: &str) -> Box<AbstractSyntaxTree> {
 
 #[cfg(test)]
 fn check_parse_error(input: &str) {
-    let mut wf = WhileyFile::from_str(input);
+    let wf = WhileyFile::from_str(input);
     assert!(wf.is_err());
 }
 
 #[cfg(test)]
 fn check_type_error(input: &str) {
-    let mut wf = WhileyFile::from_str(input);
+    let wf = WhileyFile::from_str(input);
     assert!(!wf.is_err());
     // Type input
     // let mut typer = TypeChecker::new(&mut ast, type_mapper);

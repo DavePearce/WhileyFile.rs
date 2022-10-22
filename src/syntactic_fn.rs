@@ -3,7 +3,6 @@ use std::hash::Hash;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 
-use crate::Error;
 use crate::ast::*;
 
 pub trait SyntacticFn<V> {
