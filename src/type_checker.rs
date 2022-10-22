@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use syntactic_heap::SyntacticHeap;
 use syntactic_heap::Ref;
 
-use crate::Error;
+use crate::{Error,ErrorCode};
 use crate::ast::*;
+use crate::lexer::{Span,Token};
 
 // =================================================================
 // Error
@@ -36,8 +37,8 @@ impl<'a> TypeChecker<'a> {
 	TypeChecker{globals,typing,ast}
     }
 
-    pub fn check_all(&mut self) {
-        self.check(self.ast.len()-1);
+    pub fn check_all(&mut self) -> Result<Type> {
+        self.check(self.ast.len()-1)
     }
 
     pub fn check<T:Into<usize>>(&mut self, term: T) -> Result<Type> {
@@ -106,15 +107,15 @@ impl<'a> TypeChecker<'a> {
 
     pub fn check_decl_function(&mut self, d: &decl::Function) -> Result<Type> {
         for p in &d.parameters {
-            self.check(p.declared);
+            self.check(p.declared)?;
         }
         for r in &d.returns {
-            self.check(r.declared);
+            self.check(r.declared)?;
         }
         for c in &d.clauses {
-            self.check_clause(c);
+            self.check_clause(c)?;
         }
-        self.check(d.body);
+        self.check(d.body)?;
 	//
 	Ok(self.type_of(types::Void()))
     }
@@ -137,7 +138,9 @@ impl<'a> TypeChecker<'a> {
 
     pub fn check_stmt_assert(&mut self, d: &stmt::Assert) -> Result<Type> {
 	// Determine type for asserted expression
-	self.check(d.0);
+	let t = self.check(d.0)?;
+	// Check expression is boolean
+	self.check_type(t,types::Bool())?;
 	// TODO: sort this out!
 	Ok(self.type_of(types::Void()))
     }
@@ -155,6 +158,7 @@ impl<'a> TypeChecker<'a> {
 	for s in &d.0 {
 	    self.check(*s)?;
 	}
+	// Done.
 	Ok(self.type_of(types::Void()))
     }
 
@@ -184,6 +188,13 @@ impl<'a> TypeChecker<'a> {
 	Ok(self.type_of(types::Bool()))
     }
 
+    // =============================================================================
+    // Literals
+    // =============================================================================
+
+    /// Obtain a type of the given kind.  This may require allocating
+    /// such a type on the heap, or it may reuse an existing (and
+    /// matching) type.
     fn type_of<T:Into<Types>>(&mut self, t: T) -> Type {
 	// FIXME: this is where we want to manage the creation of
 	// types carefully, such that we don't create any duplicate
@@ -196,4 +207,16 @@ impl<'a> TypeChecker<'a> {
         Type(index)
     }
 
+    /// Check one type is an instance of another.
+    fn check_type<T:Into<Types>>(&self, t1: Type, t2: T) -> Result<()> {
+	// FIXM: this is rather ugly :)
+	if *self.typing.get(t1.0) == t2.into() {
+	    Ok(())
+	} else {
+	    // Determine span (somehow)
+	    let span = Span::new(Token::Star,0..1);
+	    // Return error
+	    Err(Error::new(span,ErrorCode::ExpectedType))
+	}
+    }
 }

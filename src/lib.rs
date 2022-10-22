@@ -27,7 +27,8 @@ pub enum ErrorCode {
     ExpectedToken(Token),
     ExpectedTokenIn(Vec<Token>),
     InvalidCharacterLiteral,
-    InvalidLVal
+    InvalidLVal,
+    ExpectedType
 }
 
 /// Identifies possible errors stemming from the parser.

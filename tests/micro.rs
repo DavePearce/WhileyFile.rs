@@ -239,27 +239,27 @@ fn test_function_09() {
 }
 
 #[test]
-fn test_function_0A() {
+fn test_function_0a() {
     let ast = check_parse("public function f()->() :\n skip");
 }
 
 #[test]
-fn test_function_0B() {
+fn test_function_0b() {
     let ast = check_parse("private function f()->() :\n skip");
 }
 
 #[test]
-fn test_function_0C() {
+fn test_function_0c() {
     let ast = check_parse("export function f()->() :\n skip");
 }
 
 #[test]
-fn test_function_0D() {
+fn test_function_0d() {
     let ast = check_parse("export function f()->(int x):\n skip");
 }
 
 #[test]
-fn test_function_0E() {
+fn test_function_0e() {
     let ast = check_parse("export function f()->int:\n skip");
 }
 
@@ -696,7 +696,7 @@ fn check_parse(input: &str) -> Box<AbstractSyntaxTree> {
     let mut ast = wf.unwrap().ast;
     let mut typer = TypeChecker::new(ast.as_mut());
     let r = typer.check_all();
-    // assert!(!r.is_err());
+    assert!(!r.is_err());
     // Done
     ast
 }
