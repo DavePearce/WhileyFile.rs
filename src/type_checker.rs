@@ -80,14 +80,14 @@ impl<'a> TypeChecker<'a> {
             // NullLiteral(expr::NullLiteral),
             // StringLiteral(expr::StringLiteral),
             // // Types
-            // ArrayType(types::Array),
-            // BoolType(types::Bool),
+            Node::ArrayType(t) => self.check_type_array(&t),
+            Node::BoolType(t) => self.check_type_bool(&t),
             // FunctionType(types::Function),
-            // IntType(types::Int),
+            Node::IntType(t) => self.check_type_int(&t),
             // NominalType(types::Nominal),
-            // NullType(types::Null),
+            Node::NullType(t) => self.check_type_null(&t),
             // RecordType(types::Record),
-            // ReferenceType(types::Reference),
+            Node::ReferenceType(t) => self.check_type_reference(&t),
             // UnionType(types::Union),
             // VoidType(types::Void)
             _ => {
@@ -100,8 +100,10 @@ impl<'a> TypeChecker<'a> {
     // Declarations
     // =============================================================================
 
-    pub fn check_decl_type(&mut self, _d: &decl::Type) -> Result<Type> {
-        todo!("check_decl_type");
+    pub fn check_decl_type(&mut self, d: &decl::Type) -> Result<Type> {
+        self.check(d.pattern.declared)?;
+        //
+	Ok(self.type_of(types::Void()))
     }
 
     pub fn check_decl_function(&mut self, d: &decl::Function) -> Result<Type> {
@@ -179,7 +181,7 @@ impl<'a> TypeChecker<'a> {
     }
 
     // =============================================================================
-    // Literals
+    // Expressions
     // =============================================================================
 
     pub fn check_expr_bool(&mut self, _e: &expr::BoolLiteral) -> Result<Type> {
@@ -188,7 +190,33 @@ impl<'a> TypeChecker<'a> {
     }
 
     // =============================================================================
-    // Literals
+    // Types
+    // =============================================================================
+
+    pub fn check_type_array(&mut self, t: &types::Array) -> Result<Type> {
+        let elem = self.check(t.0)?;
+        Ok(self.type_of(types::Array(elem)))
+    }
+
+    pub fn check_type_bool(&mut self, _t: &types::Bool) -> Result<Type> {
+        Ok(self.type_of(types::Bool()))
+    }
+
+    pub fn check_type_int(&mut self, t: &types::Int) -> Result<Type> {
+        Ok(self.type_of(types::Int(t.0,t.1)))
+    }
+
+    pub fn check_type_null(&mut self, _t: &types::Null) -> Result<Type> {
+        Ok(self.type_of(types::Null()))
+    }
+
+    pub fn check_type_reference(&mut self, t: &types::Reference) -> Result<Type> {
+        let elem = self.check(t.0)?;
+        Ok(self.type_of(types::Reference(elem)))
+    }
+
+    // =============================================================================
+    // Helpers
     // =============================================================================
 
     /// Obtain a type of the given kind.  This may require allocating
