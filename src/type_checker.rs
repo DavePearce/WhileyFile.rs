@@ -4,6 +4,7 @@ use syntactic_heap::SyntacticHeap;
 use crate::{Error,ErrorCode};
 use crate::ast::*;
 use crate::lexer::{Span,Token};
+use decl::Clause::*;
 
 // =================================================================
 // Error
@@ -64,7 +65,7 @@ impl<'a> TypeChecker<'a> {
             // ArrayGeneratorExpr(expr::ArrayGenerator),
             // ArrayInitialiserExpr(expr::ArrayInitialiser),
             // ArrayLengthExpr(expr::ArrayLength),
-            // BinaryExpr(expr::Binary),
+            Node::BinaryExpr(e) => self.check_expr_binary(env, &e),
             // UnaryExpr(expr::Unary),
             // InvokeExpr(expr::Invoke),
             // IsTypeExpr(expr::IsType),
@@ -92,7 +93,7 @@ impl<'a> TypeChecker<'a> {
             // UnionType(types::Union),
             // VoidType(types::Void)
             _ => {
-                panic!("GOT HERE");
+                panic!("Unimplemented AST type ({:?})",n);
             }
         }
     }
@@ -122,16 +123,32 @@ impl<'a> TypeChecker<'a> {
 	Ok((env,self.type_of(types::Void())))
     }
 
-    pub fn check_decl_method(&mut self, env: Env, _d: &decl::Method) -> Result<(Env,Type)> {
-        todo!("check_decl_method");
+    pub fn check_decl_method(&mut self, mut env: Env, d: &decl::Method) -> Result<(Env,Type)> {
+        for p in &d.parameters {
+            (env,_) = self.check(env,p.declared)?;
+        }
+        for r in &d.returns {
+            (env,_) = self.check(env,r.declared)?;
+        }
+        for c in &d.clauses {
+            (env,_) = self.check_clause(env, c)?;
+        }
+        (env,_) = self.check(env,d.body)?;
+	//
+	Ok((env,self.type_of(types::Void())))
     }
 
     // =============================================================================
     // Specification
     // =============================================================================
 
-    pub fn check_clause(&mut self, env: Env, _d: &decl::Clause) -> Result<(Env,Type)> {
-        todo!("check_clause");
+    pub fn check_clause(&mut self, env: Env, c: &decl::Clause) -> Result<(Env,Type)> {
+        // Extract node corresponding to term
+        match c {
+            Requires(e) => self.check(env,*e),
+            Ensures(e) => self.check(env,*e),
+            Where(e) => self.check(env,*e)
+        }
     }
 
     // =============================================================================
@@ -189,6 +206,24 @@ impl<'a> TypeChecker<'a> {
     // =============================================================================
     // Expressions
     // =============================================================================
+
+    pub fn check_expr_binary(&mut self, env: Env, e: &expr::Binary) -> Result<(Env,Type)> {
+        // Type check left-hand side
+        let (env,lhs) = self.check(env,e.1)?;
+        // Type check right-hand side
+        let (env,rhs) = self.check(env,e.2)?;
+        match e.0 {
+            BinOp::LessThan => { todo!("Implement BinOp::LessThan"); }
+            BinOp::LessThanOrEquals => {
+                let (s,w) = self.check_int_type(lhs)?;
+                self.check_type(rhs, types::Int(s,w))?;
+                Ok((env,self.type_of(types::Bool())))
+            }
+            _ => {
+                todo!("implement me!");
+            }
+        }
+    }
 
     pub fn check_expr_bool(&mut self, env: Env, _e: &expr::BoolLiteral) -> Result<(Env,Type)> {
 	// Construct boolean type.
@@ -264,5 +299,22 @@ impl<'a> TypeChecker<'a> {
 	    // Return error
 	    Err(Error::new(span,ErrorCode::ExpectedType))
 	}
+    }
+
+    /// Check an arbitrary type is some form of integer type and (if
+    /// so) return the details of that.
+    fn check_int_type(&self, t1: Type) -> Result<(bool,u8)> {
+        let n = self.typing.get(t1.0);
+        match n {
+            // Match any integer type
+            Types::IntType(types::Int(s,w)) => Ok((*s,*w)),
+            // Otherwise, fail.
+            _ => {
+                // Determine span (somehow)
+	        let span = Span::new(Token::Star,0..1);
+	        // Return error
+	        Err(Error::new(span,ErrorCode::ExpectedType))
+            }
+        }
     }
 }

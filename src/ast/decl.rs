@@ -92,12 +92,12 @@ impl From<Function> for Node {
 
 #[derive(Clone,Debug,PartialEq)]
     pub struct Method {
-    modifiers: Vec<Modifier>,
-    name: Name,
-    parameters: Vec<Parameter>,
-    returns: Vec<Parameter>,
-    clauses: Vec<Clause>,
-    body:Stmt
+    pub modifiers: Vec<Modifier>,
+    pub name: Name,
+    pub parameters: Vec<Parameter>,
+    pub returns: Vec<Parameter>,
+    pub clauses: Vec<Clause>,
+    pub body:Stmt
 }
 impl Method {
     pub fn new(modifiers: Vec<Modifier>, name: Name, parameters: Vec<Parameter>,
