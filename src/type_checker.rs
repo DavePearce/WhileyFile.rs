@@ -5,6 +5,7 @@ use crate::{Error,ErrorCode};
 use crate::ast::*;
 use crate::lexer::{Span,Token};
 use decl::Clause::*;
+use crate::ast::BinOp::*;
 
 // =================================================================
 // Error
@@ -71,13 +72,11 @@ impl<'a> TypeChecker<'a> {
             // IsTypeExpr(expr::IsType),
             // RangeExpr(expr::Range),
             // QuantifierExpr(expr::Quantifier),
-            // VarAccessExpr(expr::VarAccess),
+            Node::VarAccessExpr(e) => self.check_expr_var(env, &e),
             // // Literals
             Node::BoolLiteral(e) => self.check_expr_bool(env, &e),
             // CharLiteral(expr::CharLiteral),
-            Node::IntLiteral(_) => {
-                todo!("integer literal");
-            }
+            Node::IntLiteral(e) => self.check_expr_int(env, &e),
             // LambdaLiteral(expr::LambdaLiteral),
             // NullLiteral(expr::NullLiteral),
             // StringLiteral(expr::StringLiteral),
@@ -109,38 +108,43 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_decl_function(&mut self, mut env: Env, d: &decl::Function) -> Result<(Env,Type)> {
-        for p in &d.parameters {
-            (env,_) = self.check(env,p.declared)?;
-        }
-        for r in &d.returns {
-            (env,_) = self.check(env,r.declared)?;
-        }
-        for c in &d.clauses {
-            (env,_) = self.check_clause(env, c)?;
-        }
+        env = self.check_decl_parameters(env, &d.parameters)?;
+        env = self.check_decl_parameters(env, &d.returns)?;
+        env = self.check_clauses(env,&d.clauses)?;
         (env,_) = self.check(env,d.body)?;
 	//
 	Ok((env,self.type_of(types::Void())))
     }
 
     pub fn check_decl_method(&mut self, mut env: Env, d: &decl::Method) -> Result<(Env,Type)> {
-        for p in &d.parameters {
-            (env,_) = self.check(env,p.declared)?;
-        }
-        for r in &d.returns {
-            (env,_) = self.check(env,r.declared)?;
-        }
-        for c in &d.clauses {
-            (env,_) = self.check_clause(env, c)?;
-        }
+        env = self.check_decl_parameters(env, &d.parameters)?;
+        env = self.check_decl_parameters(env, &d.returns)?;
+        env = self.check_clauses(env,&d.clauses)?;
         (env,_) = self.check(env,d.body)?;
 	//
 	Ok((env,self.type_of(types::Void())))
     }
 
+    pub fn check_decl_parameters(&mut self, mut env: Env, parameters: &[decl::Parameter]) -> Result<Env> {
+        let mut t : Type;
+        for p in parameters {
+            (env,t) = self.check(env,p.declared)?;
+            let name = self.get_name(p.name)?;
+            env.insert(name.clone(),t);
+        }
+        Ok(env)
+    }
+
     // =============================================================================
     // Specification
     // =============================================================================
+
+    pub fn check_clauses(&mut self, mut env: Env, clauses: &[decl::Clause]) -> Result<Env> {
+        for c in clauses {
+            (env,_) = self.check_clause(env, c)?;
+        }
+        Ok(env)
+    }
 
     pub fn check_clause(&mut self, env: Env, c: &decl::Clause) -> Result<(Env,Type)> {
         // Extract node corresponding to term
@@ -213,8 +217,7 @@ impl<'a> TypeChecker<'a> {
         // Type check right-hand side
         let (env,rhs) = self.check(env,e.2)?;
         match e.0 {
-            BinOp::LessThan => { todo!("Implement BinOp::LessThan"); }
-            BinOp::LessThanOrEquals => {
+            LessThan|LessThanOrEquals|GreaterThan|GreaterThanOrEquals => {
                 let (s,w) = self.check_int_type(lhs)?;
                 self.check_type(rhs, types::Int(s,w))?;
                 Ok((env,self.type_of(types::Bool())))
@@ -228,6 +231,29 @@ impl<'a> TypeChecker<'a> {
     pub fn check_expr_bool(&mut self, env: Env, _e: &expr::BoolLiteral) -> Result<(Env,Type)> {
 	// Construct boolean type.
 	Ok((env,self.type_of(types::Bool())))
+    }
+
+    pub fn check_expr_int(&mut self, env: Env, _e: &expr::IntLiteral) -> Result<(Env,Type)> {
+	// Construct integer type.
+
+        // FIXME: this is of course broken
+	Ok((env,self.type_of(types::Int(true,32))))
+    }
+
+    pub fn check_expr_var(&mut self, env: Env, e: &expr::VarAccess) -> Result<(Env,Type)> {
+        // Extract node corresponding to term
+        let n = self.get_name(e.0)?;
+        // Find it in the environment
+        let t = match env.get(n) {
+            Some(t) => *t,
+            _ => {
+                // Determine span (somehow)
+	        let span = Span::new(Token::Star,0..1);
+	        // Return error
+	        return Err(Error::new(span,ErrorCode::ExpectedType))
+            }
+        };
+        Ok((env,t))
     }
 
     // =============================================================================
@@ -280,7 +306,7 @@ impl<'a> TypeChecker<'a> {
 	// FIXME: this is where we want to manage the creation of
 	// types carefully, such that we don't create any duplicate
 	// types.  In particular, ideally, physical equality implies
-	// semantics equality.
+	// semantic equality.
 	//
         // Create new node
         let index = self.typing.push(t.into()).raw_index();
@@ -316,5 +342,15 @@ impl<'a> TypeChecker<'a> {
 	        Err(Error::new(span,ErrorCode::ExpectedType))
             }
         }
+    }
+
+    fn get_name(&self, n: Name) -> Result<&String> {
+        match self.ast.get(n.0) {
+            Node::Utf8(s) => Ok(&s),
+            node => {
+                panic!("invalid node encountered (found {}, expecting Utf8)",node);
+            }
+        }
+
     }
 }
