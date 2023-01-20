@@ -4,6 +4,7 @@ pub mod parser;
 pub mod syntactic_fn;
 pub mod type_checker;
 pub mod source_map;
+pub mod util;
 
 use std::result;
 use std::fmt;
