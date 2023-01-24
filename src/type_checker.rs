@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::marker::{PhantomData};
 use syntactic_heap::SyntacticHeap;
 
 use crate::{Error,ErrorCode};
@@ -6,13 +7,40 @@ use crate::ast::*;
 use crate::lexer::{Span,Token};
 use decl::Clause::*;
 use crate::ast::BinOp::*;
-use crate::util::{TypeConstraints};
+use crate::util::{Constraint,TypeConstraints};
 
 // =================================================================
 // Error
 // =================================================================
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+// =================================================================
+// Syntactic Heap Ref
+// =================================================================
+
+pub struct AstRef<'a,T> {
+    dummy: PhantomData<T>,
+    parent: &'a SyntacticHeap<Node>,
+    index: usize
+}
+
+impl<'a,T:TryFromRef<Node>> AstRef<'a,T> {
+
+    pub fn new<S:Into<usize>>(parent: &'a SyntacticHeap<Node>, index: S) -> Self {
+        Self{dummy: PhantomData, parent, index: index.into()}
+    }
+
+    pub fn as_ref(&self) -> &T {
+        let n = self.parent.get(self.index);
+        match T::try_from_ref(n) {
+            Some(r) => r,
+            None => {
+                panic!("invalid conversion");
+            }
+        }
+    }
+}
 
 // =================================================================
 // Typing Environment
@@ -24,7 +52,12 @@ pub struct Env {
 }
 
 impl Env {
-    pub fn bind(name: String, t: Type) {
+    pub fn new() -> Self {
+        let bindings = HashMap::new();
+        let typing = TypeConstraints::new();
+        Self{bindings,typing}
+    }
+    pub fn bind(&mut self, name: String, t: Type) {
         todo!("");
     }
 }
@@ -44,14 +77,15 @@ impl<'a> TypeChecker<'a> {
 	TypeChecker{ast}
     }
 
-    pub fn check_all(&mut self) -> Result<(Env,Type)> {
+    pub fn check_all(&mut self) -> Result<Env> {
         let env = Env::new();
         self.check(env, self.ast.len()-1)
     }
 
     pub fn check<T:Into<usize>>(&mut self, env: Env, term: T) -> Result<Env> {
+        let index = term.into();
         // Extract node corresponding to term
-        let n = self.ast.get(term.into());
+        let n = self.ast.get(index);
         // Dispatch
         match n {
             // Declarations
@@ -59,14 +93,14 @@ impl<'a> TypeChecker<'a> {
             Node::FunctionDecl(d) => self.check_decl_function(env, &d),
             Node::MethodDecl(d) => self.check_decl_method(env, &d),
             // Statements
-            Node::AssertStmt(s) => self.check_stmt_assert(env, &s),
-            Node::AssignStmt(s) => self.check_stmt_assignment(env, &s),
-            Node::AssumeStmt(s) => self.check_stmt_assume(env, &s),
+            Node::AssertStmt(s) => self.check_stmt_assert(env, AstRef::new(&self.ast,index)),
+            // Node::AssignStmt(s) => self.check_stmt_assignment(env, &s),
+            //Node::AssumeStmt(s) => self.check_stmt_assume(env, &s),
             Node::BlockStmt(s) => self.check_stmt_block(env, &s),
-            Node::IfElseStmt(s) => self.check_stmt_ifelse(env, &s),
-            Node::ReturnStmt(s) => self.check_stmt_return(env, &s),
-            Node::SkipStmt(s) => self.check_stmt_skip(env, &s),
-            Node::VarDeclStmt(s) => self.check_stmt_vardecl(env, &s),
+            // Node::IfElseStmt(s) => self.check_stmt_ifelse(env, &s),
+            // Node::ReturnStmt(s) => self.check_stmt_return(env, &s),
+            // Node::SkipStmt(s) => self.check_stmt_skip(env, &s),
+            // Node::VarDeclStmt(s) => self.check_stmt_vardecl(env, &s),
             // // Expressions
             // Arrayaccessexpr(expr::ArrayAccess),
             // ArrayGeneratorExpr(expr::ArrayGenerator),
@@ -80,7 +114,7 @@ impl<'a> TypeChecker<'a> {
             // QuantifierExpr(expr::Quantifier),
             Node::VarAccessExpr(e) => self.check_expr_var(env, &e),
             // // Literals
-            Node::BoolLiteral(e) => self.check_expr_bool(env, &e),
+            Node::BoolLiteral(e) => self.check_expr_bool(env, AstRef::new(&self.ast,index)),
             // CharLiteral(expr::CharLiteral),
             Node::IntLiteral(e) => self.check_expr_int(env, &e),
             // LambdaLiteral(expr::LambdaLiteral),
@@ -131,12 +165,15 @@ impl<'a> TypeChecker<'a> {
 	Ok(env)
     }
 
-    pub fn check_decl_parameters(&mut self, mut env: Env, parameters: &[decl::Parameter]) -> Result<Env> {
+    pub fn check_decl_parameters(&mut self, env: Env, parameters: &[decl::Parameter]) -> Result<Env> {
         let mut t : Type;
         for p in parameters {
-            (env,t) = self.check(env,p.declared)?;
-            let name = self.get_name(p.name)?;
-            env.bind(name.clone(),t);
+            // env = self.check(env,p.declared)?;
+            // let name = self.get_name(p.name)?;
+            // env.bind(name.clone(),t);
+
+            // Can we get the parser to do the binding for us already?
+            todo!("");
         }
         Ok(env)
     }
@@ -165,25 +202,14 @@ impl<'a> TypeChecker<'a> {
     // Statements
     // =============================================================================
 
-    pub fn check_stmt_assert(&mut self, mut env: Env, d: &stmt::Assert) -> Result<Env> {
+    pub fn check_stmt_assert(&mut self, mut env: Env, r: AstRef<stmt::Assert>) -> Result<Env> {
 	// Determine type for asserted expression
-	env = self.check(env,d.0)?;
+	env = self.check(env,r.as_ref().0)?;
 	// Check expression is boolean
-        todo!("check assert type");
-	// TODO: sort this out!
-	Ok(env)
-    }
-
-    pub fn check_stmt_assignment(&mut self, env: Env, _d: &stmt::Assignment) -> Result<Env> {
-        todo!("check_stmt_assign");
-    }
-
-    pub fn check_stmt_assume(&mut self, mut env: Env, d: &stmt::Assume) -> Result<Env> {
-	// Determine type for assumed expression
-	env = self.check(env,d.0)?;
-	// Check expression is boolean
-        todo!("check assert type");
-	// TODO: sort this out!
+        let t = env.typing.type_of(types::Bool());
+	// Construct boolean type constraint.
+        env.typing.add(Constraint::UpperBound(t,r.index));
+	//
 	Ok(env)
     }
 
@@ -196,21 +222,9 @@ impl<'a> TypeChecker<'a> {
 	Ok(env)
     }
 
-    pub fn check_stmt_ifelse(&mut self, env: Env, _d: &stmt::IfElse) -> Result<Env> {
-        todo!("check_stmt_ifelse");
-    }
-
-    pub fn check_stmt_return(&mut self, env: Env, _d: &stmt::Return) -> Result<Env> {
-        todo!("check_stmt_return");
-    }
-
     pub fn check_stmt_skip(&mut self, env: Env, _d: &stmt::Skip) -> Result<Env> {
 	// Do nothing!
 	Ok(env)
-    }
-
-    pub fn check_stmt_vardecl(&mut self, env: Env, _d: &stmt::VarDecl) -> Result<Env> {
-        todo!("check_stmt_vardecl");
     }
 
     // =============================================================================
@@ -235,9 +249,11 @@ impl<'a> TypeChecker<'a> {
         // }
     }
 
-    pub fn check_expr_bool(&mut self, env: Env, _e: &expr::BoolLiteral) -> Result<Env> {
-	// Construct boolean type.
-        todo!("Add boolean constraint");
+    pub fn check_expr_bool(&mut self, mut env: Env, r: AstRef<expr::BoolLiteral>) -> Result<Env> {
+        let t = env.typing.type_of(types::Bool());
+	// Construct boolean type constraint.
+        env.typing.add(Constraint::LowerBound(r.index,t));
+        // Done
 	Ok(env)
     }
 
@@ -263,6 +279,37 @@ impl<'a> TypeChecker<'a> {
         };
         todo!("add variable constraint");
         Ok(env)
+    }
+
+    // =============================================================================
+    // Types
+    // =============================================================================
+
+    pub fn check_type_array(&mut self, env: Env, t: &types::Array) -> Result<Env> {
+        self.check(env, t.0)
+    }
+
+    pub fn check_type_bool(&mut self, env: Env, _t: &types::Bool) -> Result<Env> {
+        Ok(env)
+    }
+
+    pub fn check_type_int(&mut self, env: Env, _t: &types::Int) -> Result<Env> {
+        Ok(env)
+    }
+
+    pub fn check_type_null(&mut self, env: Env, _t: &types::Null) -> Result<Env> {
+        Ok(env)
+    }
+
+    pub fn check_type_record(&mut self, mut env: Env, t: &types::Record) -> Result<Env> {
+        for &(t,n) in &t.0 {
+            env = self.check(env,t)?;
+        }
+        Ok(env)
+    }
+
+    pub fn check_type_reference(&mut self, env: Env, t: &types::Reference) -> Result<Env> {
+        self.check(env, t.0)
     }
 
     // =============================================================================

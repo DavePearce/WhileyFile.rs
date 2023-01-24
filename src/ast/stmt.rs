@@ -1,6 +1,5 @@
 use crate::ast::*;
 
-
 // =============================================================================
 // Statements
 // =============================================================================
@@ -47,6 +46,15 @@ pub struct Assert(pub Expr);
 
 impl From<Assert> for Node {
     fn from(s: Assert) -> Self { Node::AssertStmt(s) }
+}
+
+impl TryFromRef<Node> for Assert {
+    fn try_from_ref(r:&Node) -> Option<&Self> {
+        match r {
+            Node::AssertStmt(s) => Some(&s),
+            _ => None
+        }
+    }
 }
 
 // =============================================================================

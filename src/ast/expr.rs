@@ -64,6 +64,15 @@ impl From<BoolLiteral> for Node {
     fn from(s: BoolLiteral) -> Self { Node::BoolLiteral(s) }
 }
 
+impl TryFromRef<Node> for BoolLiteral {
+    fn try_from_ref(r:&Node) -> Option<&Self> {
+        match r {
+            Node::BoolLiteral(s) => Some(&s),
+            _ => None
+        }
+    }
+}
+
 #[derive(Clone,Debug,PartialEq)]
 pub struct CharLiteral(pub char);
 

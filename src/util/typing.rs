@@ -1,4 +1,4 @@
-use crate::ast::{Types,Type};
+use crate::ast::{AbstractSyntaxTree,Types,Type};
 use syntactic_heap::SyntacticHeap;
 
 // ===================================================================
@@ -7,9 +7,9 @@ use syntactic_heap::SyntacticHeap;
 
 /// Represents a type constraint on a given variable
 #[derive(Clone)]
-enum Constraint {
+pub enum Constraint {
     LowerBound(usize,Type),
-    UpperBOund(Type,usize),
+    UpperBound(Type,usize),
     Subtype(usize,usize),
     Equal(usize,usize)
 }
@@ -19,7 +19,7 @@ enum Constraint {
 // ===================================================================
 
 /// Represents a typing of all variables.
-struct TypeConstraints {
+pub struct TypeConstraints {
     /// Syntactic heap of types
     types: SyntacticHeap<Types>,
     /// The set of constraints on each variable
@@ -50,7 +50,7 @@ impl TypeConstraints {
     /// Obtain a type of the given kind.  This may require allocating
     /// such a type on the heap, or it may reuse an existing (and
     /// matching) type.
-    fn type_of<T:Into<Types>>(&mut self, t: T) -> Type {
+    pub fn type_of<T:Into<Types>>(&mut self, t: T) -> Type {
 	// FIXME: this is where we want to manage the creation of
 	// types carefully, such that we don't create any duplicate
 	// types.  In particular, ideally, physical equality implies

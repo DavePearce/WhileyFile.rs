@@ -18,6 +18,13 @@ pub use self::stmt::{Stmt};
 pub use self::types::{Type};
 pub use self::comment::*;
 
+
+// Should be located elsewhere!
+
+pub trait TryFromRef<T> {
+    fn try_from_ref<'a>(_:&'a T) -> Option<&'a Self>;
+}
+
 // =============================================================================
 // Abstract Syntax Tree
 // =============================================================================
