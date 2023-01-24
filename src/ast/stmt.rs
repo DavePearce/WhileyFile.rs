@@ -48,11 +48,13 @@ impl From<Assert> for Node {
     fn from(s: Assert) -> Self { Node::AssertStmt(s) }
 }
 
-impl TryFromRef<Node> for Assert {
-    fn try_from_ref(r:&Node) -> Option<&Self> {
+impl<'a> TryFrom<&'a Node> for &'a Assert {
+    type Error = ();
+
+    fn try_from(r:&'a Node) -> Result<Self,Self::Error> {
         match r {
-            Node::AssertStmt(s) => Some(&s),
-            _ => None
+            Node::AssertStmt(s) => Ok(&s),
+            _ => Err(())
         }
     }
 }

@@ -25,19 +25,20 @@ pub struct AstRef<'a,T> {
     index: usize
 }
 
-impl<'a,T:TryFromRef<Node>> AstRef<'a,T> {
-
+impl<'a,T> AstRef<'a,T>
+where for<'b> &'b T:TryFrom<&'b Node>
+{
     pub fn new<S:Into<usize>>(parent: &'a SyntacticHeap<Node>, index: S) -> Self {
         Self{dummy: PhantomData, parent, index: index.into()}
     }
 
     pub fn as_ref(&self) -> &T {
+        // Extract Node
         let n = self.parent.get(self.index);
-        match T::try_from_ref(n) {
-            Some(r) => r,
-            None => {
-                panic!("invalid conversion");
-            }
+        // Check whether cast successful or not
+        match <&T>::try_from(n) {
+            Ok(r) => &r,
+            Err(_) => { panic!("invalid conversion"); }
         }
     }
 }
@@ -78,8 +79,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_all(&mut self) -> Result<Env> {
-        let env = Env::new();
-        self.check(env, self.ast.len()-1)
+        let mut env = Env::new();
+        env = self.check(env, self.ast.len()-1)?;
+        println!("Constraints: {:?}",env.typing);
+        Ok(env)
     }
 
     pub fn check<T:Into<usize>>(&mut self, env: Env, term: T) -> Result<Env> {

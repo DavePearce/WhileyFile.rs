@@ -6,7 +6,7 @@ use syntactic_heap::SyntacticHeap;
 // ===================================================================
 
 /// Represents a type constraint on a given variable
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum Constraint {
     LowerBound(usize,Type),
     UpperBound(Type,usize),
@@ -19,6 +19,7 @@ pub enum Constraint {
 // ===================================================================
 
 /// Represents a typing of all variables.
+#[derive(Debug)]
 pub struct TypeConstraints {
     /// Syntactic heap of types
     types: SyntacticHeap<Types>,

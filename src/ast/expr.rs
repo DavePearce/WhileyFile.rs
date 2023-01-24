@@ -64,11 +64,13 @@ impl From<BoolLiteral> for Node {
     fn from(s: BoolLiteral) -> Self { Node::BoolLiteral(s) }
 }
 
-impl TryFromRef<Node> for BoolLiteral {
-    fn try_from_ref(r:&Node) -> Option<&Self> {
+impl<'a> TryFrom<&'a Node> for &'a BoolLiteral {
+    type Error = ();
+
+    fn try_from(r:&'a Node) -> Result<Self,Self::Error> {
         match r {
-            Node::BoolLiteral(s) => Some(&s),
-            _ => None
+            Node::BoolLiteral(s) => Ok(&s),
+            _ => Err(())
         }
     }
 }
