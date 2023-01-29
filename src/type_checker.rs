@@ -2,18 +2,12 @@ use std::collections::HashMap;
 use std::marker::{PhantomData};
 use syntactic_heap::SyntacticHeap;
 
-use crate::{Error,ErrorCode};
+use crate::{Error,ErrorCode,Result};
 use crate::ast::*;
 use crate::lexer::{Span,Token};
 use decl::Clause::*;
 use crate::ast::BinOp::*;
 use crate::util::{Constraint,TypeConstraints};
-
-// =================================================================
-// Error
-// =================================================================
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 // =================================================================
 // Syntactic Heap Ref
@@ -61,6 +55,9 @@ impl Env {
     pub fn bind(&mut self, name: String, t: Type) {
         todo!("");
     }
+    pub fn solve(&mut self) -> Result<Vec<Type>> {
+        self.typing.solve()
+    }
 }
 
 // =================================================================
@@ -82,6 +79,7 @@ impl<'a> TypeChecker<'a> {
         let mut env = Env::new();
         env = self.check(env, self.ast.len()-1)?;
         println!("Constraints: {:?}",env.typing);
+        let types = env.solve();
         Ok(env)
     }
 
