@@ -18,7 +18,31 @@ pub enum Constraint {
 
 impl Constraint {
     pub fn max_var(&self) -> usize {
-        todo!("got here");
+        match self {
+            Constraint::LowerBound(v,_) => *v,
+            Constraint::UpperBound(_,v) => *v,
+            Constraint::Subtype(lhs,rhs) => cmp::max(*lhs,*rhs),
+            _ => {
+                todo!("Support more constraints constraint");
+            }
+        }
+    }
+
+    pub fn apply(&self, types: &mut [Type]) {
+        match self {
+            Constraint::LowerBound(v,t) => {
+                todo!("Found upper bound constraint");
+            }
+            Constraint::UpperBound(t,v) => {
+                todo!("Found upper bound constraint");
+            }
+            Constraint::Subtype(lhs,rhs) => {
+                todo!("Found subtype constraint");
+            }
+            _ => {
+                todo!("Support more constraints constraint");
+            }
+        }
     }
 }
 
@@ -38,6 +62,8 @@ pub struct TypeConstraints {
 }
 
 impl TypeConstraints {
+    const BOTTOM : Type = Type(0);
+
     pub fn new() -> Self {
         let heap = SyntacticHeap::new();
         let constraints = Vec::new();
@@ -52,21 +78,12 @@ impl TypeConstraints {
     }
 
     pub fn add(&mut self, c: Constraint) {
+        // Ensure sufficient types
+        self.expand(c.max_var());
+        // Record constraint
         self.constraints.push(c);
-    }
-
-    pub fn solve(&mut self) -> Result<Vec<Type>> {
-        let changed = true;
-        let mut types = Vec::new();
-        // Keep iterating until no change
-        while changed {
-            for i in 0..self.constraints.len() {
-                let ith = self.constraints[i];
-                self.apply_constraint(&ith)?;
-            }
-        }
-        // Done
-        Ok(types)
+        // Apply constraint
+        c.apply(&mut self.types);
     }
 
     /// Obtain a type of the given kind.  This may require allocating
@@ -84,30 +101,16 @@ impl TypeConstraints {
         Type(index)
     }
 
-    pub fn apply_constraint(&mut self, c: &Constraint) -> Result<()> {
-        match c {
-            Constraint::LowerBound(v,t) => {
-                todo!("Found upper bound constraint");
-            }
-            Constraint::UpperBound(t,v) => {
-                todo!("Found upper bound constraint");
-            }
-            Constraint::Subtype(lhs,rhs) => {
-                todo!("Found subtype constraint");
-            }
-            _ => {
-                todo!("Support more constraints constraint");
-            }
-        }
-    }
+    // ===============================================================
+    // Helpers
+    // ===============================================================
 
-    /// Determine largest variable contained within constraints.
-    fn max_var(&self) -> usize {
-        let mut max_var = 0;
-        for c in &self.constraints {
-            max_var = cmp::max(max_var,c.max_var());
+    /// Make sure that `self.types` has sufficient space for the given variable.
+    fn expand(&mut self, var: usize) {
+        if var >= self.types.len() {
+            // Yes, expansion is required
+            self.types.resize(var+1, Self::BOTTOM);
         }
-        max_var
     }
 
     // pub fn check_type_array(&mut self, env: Env, t: &types::Array) -> Result<Env> {

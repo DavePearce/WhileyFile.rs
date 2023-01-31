@@ -55,9 +55,6 @@ impl Env {
     pub fn bind(&mut self, name: String, t: Type) {
         todo!("");
     }
-    pub fn solve(&mut self) -> Result<Vec<Type>> {
-        self.typing.solve()
-    }
 }
 
 // =================================================================
@@ -79,7 +76,6 @@ impl<'a> TypeChecker<'a> {
         let mut env = Env::new();
         env = self.check(env, self.ast.len()-1)?;
         println!("Constraints: {:?}",env.typing);
-        let types = env.solve();
         Ok(env)
     }
 
