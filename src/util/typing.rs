@@ -1,5 +1,6 @@
 use std::cmp;
-use crate::ast::{AbstractSyntaxTree,Types,Type};
+use crate::ast::{AbstractSyntaxTree,Node,Types,Type};
+use crate::ast::types;
 use crate::{Result};
 use syntactic_heap::SyntacticHeap;
 
@@ -31,10 +32,19 @@ impl Constraint {
     pub fn apply(&self, types: &mut [Type]) {
         match self {
             Constraint::LowerBound(v,t) => {
-                todo!("Found upper bound constraint");
+                if types[*v] == TypeConstraints::BOTTOM {
+                    types[*v] = *t;
+                } else {
+                    todo!("IMPLEMENT ME");
+                }
             }
             Constraint::UpperBound(t,v) => {
-                todo!("Found upper bound constraint");
+                // FIXME: this is a hack
+                if types[*v] == TypeConstraints::BOTTOM {
+                    types[*v] = *t;
+                } else {
+                    todo!("IMPLEMENT ME");
+                }
             }
             Constraint::Subtype(lhs,rhs) => {
                 todo!("Found subtype constraint");
@@ -58,17 +68,18 @@ pub struct TypeConstraints {
     /// The set of constraints on each variable
     constraints: Vec<Constraint>,
     /// Current variable typings
-    types: Vec<Type>
+    typing: Vec<Type>
 }
 
 impl TypeConstraints {
     const BOTTOM : Type = Type(0);
 
     pub fn new() -> Self {
-        let heap = SyntacticHeap::new();
+        let mut heap = SyntacticHeap::new();
         let constraints = Vec::new();
-        let types = Vec::new();
-        TypeConstraints{heap, constraints, types}
+        let typing = Vec::new();
+        heap.push(Types::from(types::Void().into()));
+        TypeConstraints{heap, constraints, typing}
     }
 
     /// Copy a type from the abstract syntax tree into this typing so
@@ -83,7 +94,7 @@ impl TypeConstraints {
         // Record constraint
         self.constraints.push(c);
         // Apply constraint
-        c.apply(&mut self.types);
+        c.apply(&mut self.typing);
     }
 
     /// Obtain a type of the given kind.  This may require allocating
@@ -107,9 +118,9 @@ impl TypeConstraints {
 
     /// Make sure that `self.types` has sufficient space for the given variable.
     fn expand(&mut self, var: usize) {
-        if var >= self.types.len() {
+        if var >= self.typing.len() {
             // Yes, expansion is required
-            self.types.resize(var+1, Self::BOTTOM);
+            self.typing.resize(var+1, Self::BOTTOM);
         }
     }
 
